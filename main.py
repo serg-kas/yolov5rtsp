@@ -1,24 +1,25 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import cv2 as cv
 import threading
 import os
 from time import sleep
-
+#
+import utils_small as u
+#
+# colors = [u.blue, u.green, u.red, u.white, u.yellow, u.purple, u.turquoise, u.black]
+colors = [tuple(np.random.choice(range(256), size=3)) for x in range(80)]
+colors = [(int(colors[x][0]), int(colors[x][1]), int(colors[x][2])) for x in range(80)]
 #
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=1'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-
-# 'Upsample' object has no attribute 'recompute_scale_factor'
+# HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
 for m in model.modules():
     if isinstance(m, nn.Upsample):
         m.recompute_scale_factor = None
-
-#
-THICKNESS = 2
-COLOR = (255, 0, 0)
 
 #
 names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -33,11 +34,12 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
 
 names_to_detect = names
 # names_to_detect = ['person']
-classes_to_detect = []
+
+classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
-        classes_to_detect.append(idx)
-print("Распознаем классы (id) {}:".format(classes_to_detect))
+        classes_list.append(idx)
+print("Распознаем классов: {}".format(len(classes_list)))
 
 
 class MyThread (threading.Thread):
@@ -46,29 +48,39 @@ class MyThread (threading.Thread):
         self.result = None
         self.frame = None
         self.stop = False
+        #
+        # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        # # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
+        # for m in self.model.modules():
+        #     if isinstance(m, nn.Upsample):
+        #         m.recompute_scale_factor = None
 
     def run(self):
         while not self.stop:
             # wait if no frame
             if self.frame is None:
-                sleep(0.01)
+                print("Нет фрейма для предикта")
+                # sleep(0.01)
+                sleep(0.05)
                 continue
-
             #
+            # results = self.model([self.frame]).xyxy[0]
             results = model([self.frame]).xyxy[0]
-
             #
             result_list = []
             for row in results:
-                cl = int(row[-1])
-                conf = float(row[-2])
                 coords = tuple(row.int().numpy()[:-2])
+                conf = float(row[-2])
+                curr_class = int(row[-1])
                 #
-                if cl in classes_to_detect:
-                    result_list.append([coords, conf, cl])
-                #
+                if curr_class in classes_list:
+                    result_list.append([coords, conf, curr_class])
+            #
+            if len(result_list) > 0:
                 self.result = result_list
                 self.frame = None
+
+
 
 
 #
@@ -84,29 +96,39 @@ myThread.start()
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
+    if ret:
+        print("Получен новый фрейм")
+        # sent_frame_for_pred = False
+        # засылаем новый фрейм на предикт
+        if myThread.frame is None:
+            myThread.frame = frame
 
-    # засылаем новый фрейм на предикт
-    if myThread.frame is None:
-        myThread.frame = frame
+            print("Новый фрейм на предикт")
+            # sent_frame_for_pred = True
+        else:
+            print("Нейронка фрейм не берет")
+    else:
+        print("Нет нового фрейма")
 
-    # TODO: рисовать bb разными цветами
+    #
     if myThread.result is not None:
-        # print(len(myThread.result))
+        print("Получен предикт, классов:", len(myThread.result))
         for res in myThread.result:
-            (X1, Y1, X2, Y2), _, cl = res
-            # frame = cv.rectangle(frame, myThread.result[:2], myThread.result[2:], COLOR, THICKNESS)
-            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, THICKNESS)
-            frame = cv.putText(frame, names[cl], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255, 0, 0), thickness=1)
+            # print("res", res)
+            (X1, Y1, X2, Y2), _, class_id = res
+            COLOR = colors[class_id]
+            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
+            frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+    else:
+        print("Предикт не готов")
 
     #
     cv.imshow(RTSP_URL, frame)
-
     #
     c = cv.waitKey(1)
     if c == 27:
         myThread.stop = True
         break
-
 #
 cap.release()
 cv.destroyAllWindows()
