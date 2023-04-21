@@ -1,12 +1,12 @@
 import numpy as np
+import cv2 as cv
 import torch
 import torch.nn as nn
-import cv2 as cv
 import threading
 import os
 from time import sleep
 #
-import utils_small as u
+# import utils_small as u
 #
 # colors = [u.blue, u.green, u.red, u.white, u.yellow, u.purple, u.turquoise, u.black]
 colors = [tuple(np.random.choice(range(256), size=3)) for x in range(80)]
@@ -46,7 +46,7 @@ class MyThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.result = None
-        self.frame = None
+        self.image = None
         self.stop = False
         #
         self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -57,15 +57,20 @@ class MyThread (threading.Thread):
 
     def run(self):
         while not self.stop:
-            # wait if no frame
-            if self.frame is None:
-                print("Нет фрейма для предикта")
+            #
+            # got_new_pred = False
+
+            # wait if no image
+            if self.image is None:
+                print("Нет изображения для предикта")
                 # sleep(0.01)
-                sleep(0.05)
+                sleep(0.1)
                 continue
             #
-            results = self.model([self.frame]).xyxy[0]
-            # results = model([self.frame]).xyxy[0]
+            results = self.model([self.image]).xyxy[0]
+            # results = model([self.image]).xyxy[0]
+            #
+            # got_new_pred = True
             #
             result_list = []
             for row in results:
@@ -76,9 +81,16 @@ class MyThread (threading.Thread):
                 if curr_class in classes_list:
                     result_list.append([coords, conf, curr_class])
             #
-            if len(result_list) > 0:
-                self.result = result_list
-                self.frame = None
+            # if len(result_list) > 0:
+            #     self.result = result_list
+            # else:
+            #     self.result = []
+            #
+            # if got_new_pred:
+            #     self.result = result_list
+            #     self.image = None
+            self.result = result_list.copy()
+            self.image = None
 
 
 #
@@ -96,13 +108,11 @@ while True:
     ret, frame = cap.read()
     if ret:
         print("Получен новый фрейм")
-        # sent_frame_for_pred = False
         # засылаем новый фрейм на предикт
-        if myThread.frame is None:
-            myThread.frame = frame
+        if myThread.image is None:
+            myThread.image = frame
 
             print("Новый фрейм на предикт")
-            # sent_frame_for_pred = True
         else:
             print("Нейронка фрейм не берет")
     else:
