@@ -50,6 +50,8 @@ class MyThread (threading.Thread):
         self.stop = False
         #
         self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        # self.model.conf = 0.25  # confidence threshold (0-1)
+        # self.model.iou = 0.45  # NMS IoU threshold (0-1)
         # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
         for m in self.model.modules():
             if isinstance(m, nn.Upsample):
@@ -63,8 +65,9 @@ class MyThread (threading.Thread):
             # wait if no image
             if self.image is None:
                 print("Нет изображения для предикта")
-                # sleep(0.01)
-                sleep(0.1)
+                sleep(0.01)
+                # sleep(1)
+                # sleep(0.5)
                 continue
             #
             results = self.model([self.image]).xyxy[0]
@@ -102,6 +105,8 @@ if not cap.isOpened():
 myThread = MyThread()
 myThread.start()
 
+prev_result = []
+
 #
 while True:
     # получаем новый фрейм
@@ -110,7 +115,7 @@ while True:
         print("Получен новый фрейм")
         # засылаем новый фрейм на предикт
         if myThread.image is None:
-            myThread.image = frame
+            myThread.image = frame.copy()
 
             print("Новый фрейм на предикт")
         else:
@@ -120,6 +125,9 @@ while True:
 
     #
     if myThread.result is not None:
+
+        prev_result = myThread.result.copy()
+
         print("Получен предикт, классов:", len(myThread.result))
         for res in myThread.result:
             # print("res", res)
@@ -128,8 +136,14 @@ while True:
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
             frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
     else:
-        print("Предикт не готов")
-
+        print("Предикт не готов, рисуем старый предикт")
+        for res in prev_result:
+            # print("res", res)
+            (X1, Y1, X2, Y2), _, class_id = res
+            COLOR = colors[class_id]
+            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
+            frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4,
+                               color=COLOR, thickness=1)
     #
     cv.imshow(RTSP_URL, frame)
     #
