@@ -15,11 +15,11 @@ colors = [(int(colors[x][0]), int(colors[x][1]), int(colors[x][2])) for x in ran
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=1'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-# HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
-for m in model.modules():
-    if isinstance(m, nn.Upsample):
-        m.recompute_scale_factor = None
+# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+# # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
+# for m in model.modules():
+#     if isinstance(m, nn.Upsample):
+#         m.recompute_scale_factor = None
 
 #
 names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -49,11 +49,11 @@ class MyThread (threading.Thread):
         self.frame = None
         self.stop = False
         #
-        # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-        # # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
-        # for m in self.model.modules():
-        #     if isinstance(m, nn.Upsample):
-        #         m.recompute_scale_factor = None
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
+        for m in self.model.modules():
+            if isinstance(m, nn.Upsample):
+                m.recompute_scale_factor = None
 
     def run(self):
         while not self.stop:
@@ -64,8 +64,8 @@ class MyThread (threading.Thread):
                 sleep(0.05)
                 continue
             #
-            # results = self.model([self.frame]).xyxy[0]
-            results = model([self.frame]).xyxy[0]
+            results = self.model([self.frame]).xyxy[0]
+            # results = model([self.frame]).xyxy[0]
             #
             result_list = []
             for row in results:
@@ -79,8 +79,6 @@ class MyThread (threading.Thread):
             if len(result_list) > 0:
                 self.result = result_list
                 self.frame = None
-
-
 
 
 #
