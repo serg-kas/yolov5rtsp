@@ -4,23 +4,13 @@ import torch
 import torch.nn as nn
 import threading
 import os
+from random import randint
 from time import sleep
 #
 # import utils_small as u
-#
-# colors = [u.blue, u.green, u.red, u.white, u.yellow, u.purple, u.turquoise, u.black]
-colors = [tuple(np.random.choice(range(256), size=3)) for x in range(80)]
-colors = [(int(colors[x][0]), int(colors[x][1]), int(colors[x][2])) for x in range(80)]
-#
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=1'
-os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 
-# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-# # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
-# for m in model.modules():
-#     if isinstance(m, nn.Upsample):
-#         m.recompute_scale_factor = None
-
+#
+colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(80)]
 #
 names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
          'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
@@ -31,15 +21,24 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush']
-
+#
 names_to_detect = names
 # names_to_detect = ['person']
-
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
 print("Распознаем классов: {}".format(len(classes_list)))
+
+#
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=7&subtype=1'
+os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
+#
+# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+# # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
+# for m in model.modules():
+#     if isinstance(m, nn.Upsample):
+#         m.recompute_scale_factor = None
 
 
 class MyThread (threading.Thread):
@@ -56,6 +55,7 @@ class MyThread (threading.Thread):
         for m in self.model.modules():
             if isinstance(m, nn.Upsample):
                 m.recompute_scale_factor = None
+
 
     def run(self):
         while not self.stop:
@@ -105,9 +105,8 @@ if not cap.isOpened():
 myThread = MyThread()
 myThread.start()
 
-prev_result = []
-
 #
+prev_result = []
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
@@ -116,7 +115,6 @@ while True:
         # засылаем новый фрейм на предикт
         if myThread.image is None:
             myThread.image = frame.copy()
-
             print("Новый фрейм на предикт")
         else:
             print("Нейронка фрейм не берет")
@@ -125,10 +123,9 @@ while True:
 
     #
     if myThread.result is not None:
-
         prev_result = myThread.result.copy()
-
         print("Получен предикт, классов:", len(myThread.result))
+        #
         for res in myThread.result:
             # print("res", res)
             (X1, Y1, X2, Y2), _, class_id = res
