@@ -7,8 +7,10 @@ import os
 from random import randint
 from time import sleep
 #
-# import utils_small as u
+import utils_small as u
 
+#
+DEBUG = False
 #
 colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(80)]
 #
@@ -28,10 +30,11 @@ classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
-print("Распознаем классов: {}".format(len(classes_list)))
+if DEBUG:
+    print("Распознаем классов: {}".format(len(classes_list)))
 
 #
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=7&subtype=1'
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=1'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 # model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -49,8 +52,10 @@ class MyThread (threading.Thread):
         self.stop = False
         #
         self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+
         # self.model.conf = 0.25  # confidence threshold (0-1)
         # self.model.iou = 0.45  # NMS IoU threshold (0-1)
+
         # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
         for m in self.model.modules():
             if isinstance(m, nn.Upsample):
@@ -60,7 +65,8 @@ class MyThread (threading.Thread):
         while not self.stop:
             # wait if no image
             if self.image is None:
-                print("Нет изображения для предикта")
+                if DEBUG:
+                    print("Нейронка свободна, но фрейма для предикта нет")
                 sleep(0.01)
                 # sleep(1)
                 # sleep(0.5)
@@ -74,11 +80,10 @@ class MyThread (threading.Thread):
                 coords = tuple(row.int().numpy()[:-2])
                 conf = float(row[-2])
                 curr_class = int(row[-1])
-                #
                 if curr_class in classes_list:
-                    result_list.append([coords, conf, curr_class])
+                    result_list.append([coords, conf, curr_class, -1])  # -1 - номер трека по умолчанию
 
-            self.result = result_list.copy()
+            self.result = result_list
             self.image = None
 
 
@@ -86,65 +91,117 @@ class MyThread (threading.Thread):
 cap = cv.VideoCapture(RTSP_URL)
 if not cap.isOpened():
     raise IOError("Cannot open cam")
+else:
+    if DEBUG:
+        print("Подключили capture: {}".format(RTSP_URL))
 #
 myThread = MyThread()
 myThread.start()
-#
 
-prev_result = []  # предыдущий результат
+#
+N = 15  # размер аккумулятора, предиктов
+n = 3  # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
+assert n <= N
+
+#
+track = 0
+#
 acc_result = []   # аккумулируемый результат
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
-        print("Получен новый фрейм")
+        if DEBUG:
+            print("Получен новый фрейм")
+
         # засылаем новый фрейм на предикт
         if myThread.image is None:
             myThread.image = frame.copy()
-            print("Новый фрейм на предикт")
+            if DEBUG:
+                print("Новый фрейм подан на предикт")
         else:
-            print("Нейронка фрейм не берет")
+            if DEBUG:
+                print("Нейронка занята, фрейм не берет")
     else:
-        print("Нет нового фрейма")
+        if DEBUG:
+            print("Нет нового фрейма")
 
     #
     if myThread.result is not None:
+        if DEBUG:
+            print("Получен предикт, классов:", len(myThread.result))
         #
-        acc_result.append(myThread.result.copy())
-        if len(acc_result) > 3:
+        result = []
+        for new_obj in myThread.result:
+            #
+            obj_recognized = False
+            for pred in acc_result:
+                for obj in pred:
+                    #
+                    if new_obj[2] == obj[2] and u.get_iou(new_obj[0], obj[0]) > 0.80:
+                        obj_recognized = True
+                        if obj[3] == -1:
+                            print("Двум идентичным объектам {} и {} присвоен новый трек {}".format(names[obj[2]],
+                                                                                                   names[new_obj[2]],
+                                                                                                   track))
+                            obj[3] = track
+                            new_obj[3] = track
+                            track += 1 if track < 1000 else 0
+                        else:
+                            print("Новому объекту {} присвоен существующий трек".format(names[obj[2]], obj[3]))
+                            new_obj[3] = obj[3]
+                        break
+                if obj_recognized:
+                    break
+
+            if not obj_recognized:
+                print("Новому объекту {} присвоен новый трек".format(names[new_obj[2]], track))
+                new_obj[3] = track
+                track += 1 if track < 1000 else 0
+            #
+            result.append(new_obj)
+        #
+        acc_result.append(result)
+        if len(acc_result) > N:
             acc_result.pop(0)
-        print(len(acc_result))
-        # TODO: усреднить предикты из списка  - аккумулятора.
 
-
-        print("Получен предикт, классов:", len(myThread.result))
         #
-        for res in myThread.result:
-        # for res in result:
-            # print("res", res)
-            (X1, Y1, X2, Y2), _, class_id = res
-            COLOR = colors[class_id]
-            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
-            frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
-    else:
-        print("Предикт не готов, рисуем старый предикт")
-        for res in prev_result:
-            # print("res", res)
-            (X1, Y1, X2, Y2), _, class_id = res
-            COLOR = colors[class_id]
-            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
-            frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4,
-                               color=COLOR, thickness=1)
+        result_np = []
+        for pred in acc_result:
+            for obj in pred:
+                if obj[3] != -1:
+                    result_np.append(list(obj[0]) + [obj[2]] + [obj[3]])
+        result_np = np.array(result_np, dtype='uint8')
+
+        #
+        print(result_np.shape, np.unique(result_np[:, 4], return_counts=True))
+
+
+
+    # TODO: В дальнейшем результат = обработанный аккумулятор. Временно берем последний предикт
+    result = acc_result[-1] if len(acc_result) > 0 else []
+
+    for res in result:
+        # print("res", res)
+        (X1, Y1, X2, Y2), _, class_id, track_id = res
+        # COLOR = colors[class_id]
+        COLOR = colors[track_id]
+        frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
+        frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
 
     #
     cv.imshow(RTSP_URL, frame)
     #
     c = cv.waitKey(1)
     if c == 27:
+        if DEBUG:
+            print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
         myThread.stop = True
         break
 
 #
+if DEBUG:
+    print("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
 
