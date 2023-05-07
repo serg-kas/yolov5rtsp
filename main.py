@@ -34,7 +34,7 @@ if DEBUG:
     print("Распознаем классов: {}".format(len(classes_list)))
 
 #
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=1'
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=7&subtype=1'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 # model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -172,10 +172,24 @@ while True:
                 if obj[3] != -1:
                     result_np.append(list(obj[0]) + [obj[2]] + [obj[3]])
         result_np = np.array(result_np, dtype='uint8')
+        #
+        if len(result_np.shape) == 1:
+            classes = np.array([])
+            counts = np.array([])
+        else:
+            classes, counts = np.unique(result_np[:, 4], return_counts=True)
+        print(result_np.shape, classes, counts)
 
         #
-        print(result_np.shape, np.unique(result_np[:, 4], return_counts=True))
-
+        classes = list(classes)
+        counts = list(counts)
+        for i in range(len(classes)):
+            print(i, classes[i], counts[i])
+            print(result_np[result_np[:, 4] == classes[i]])
+            # x1 = result_np[result_np[:, 4] == classes[i]][:, 0]
+            x = result_np[result_np[:, 4] == classes[i]][:, 0:4]
+            print(x)
+            print(np.mean(x, axis=0).round())
 
 
     # TODO: В дальнейшем результат = обработанный аккумулятор. Временно берем последний предикт
