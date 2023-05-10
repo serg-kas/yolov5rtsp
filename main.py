@@ -34,7 +34,9 @@ if DEBUG:
     print("Распознаем классов: {}".format(len(classes_list)))
 
 #
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=7&subtype=1'
+def_W = 700  # целевая ширина изображения
+#
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 # model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
@@ -99,22 +101,28 @@ myThread = MyThread()
 myThread.start()
 
 #
-N = 15  # размер аккумулятора, предиктов
-n = 3  # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
+N = 30  # размер аккумулятора, предиктов
+n = 20  # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
 assert n <= N
 
 #
 track = 0
 #
 acc_result = []   # аккумулируемый результат
+result_show = []
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
         if DEBUG:
             print("Получен новый фрейм")
+        assert frame is not None
+        h, w = frame.shape[:2]
+        W = def_W
+        H = int(W / w * h)
+        frame = cv.resize(frame, (W, H), interpolation=cv.INTER_AREA)
 
-        # засылаем новый фрейм на предикт
+    # засылаем новый фрейм на предикт
         if myThread.image is None:
             myThread.image = frame.copy()
             if DEBUG:
@@ -138,24 +146,18 @@ while True:
             for pred in acc_result:
                 for obj in pred:
                     #
-                    if new_obj[2] == obj[2] and u.get_iou(new_obj[0], obj[0]) > 0.80:
+                    if new_obj[2] == obj[2] and u.get_iou(new_obj[0], obj[0]) > 0.25:
                         obj_recognized = True
-                        if obj[3] == -1:
-                            print("Двум идентичным объектам {} и {} присвоен новый трек {}".format(names[obj[2]],
-                                                                                                   names[new_obj[2]],
-                                                                                                   track))
-                            obj[3] = track
-                            new_obj[3] = track
-                            track += 1 if track < 1000 else 0
-                        else:
-                            print("Новому объекту {} присвоен существующий трек".format(names[obj[2]], obj[3]))
-                            new_obj[3] = obj[3]
+                        if DEBUG:
+                            print("Объекту {} присвоен существующий трек".format(names[obj[2]], obj[3]))
+                        new_obj[3] = obj[3]
                         break
                 if obj_recognized:
                     break
-
+            #
             if not obj_recognized:
-                print("Новому объекту {} присвоен новый трек".format(names[new_obj[2]], track))
+                if DEBUG:
+                    print("Объекту {} присвоен новый трек".format(names[new_obj[2]], track))
                 new_obj[3] = track
                 track += 1 if track < 1000 else 0
             #
@@ -171,35 +173,52 @@ while True:
             for obj in pred:
                 if obj[3] != -1:
                     result_np.append(list(obj[0]) + [obj[2]] + [obj[3]])
-        result_np = np.array(result_np, dtype='uint8')
+                    # print(list(obj[0]) + [obj[2]] + [obj[3]])
+        # result_np = np.array(result_np, dtype='uint8')
+        result_np = np.array(result_np)
+        # print(result_np)
         #
         if len(result_np.shape) == 1:
-            classes = np.array([])
-            counts = np.array([])
+            tracks, counts = np.array([]), np.array([])
         else:
-            classes, counts = np.unique(result_np[:, 4], return_counts=True)
-        print(result_np.shape, classes, counts)
+            tracks, counts = np.unique(result_np[:, 5], return_counts=True)
+        # print("tracks", tracks, "counts", counts)
 
         #
-        classes = list(classes)
+        tracks = list(tracks)
         counts = list(counts)
-        for i in range(len(classes)):
-            print(i, classes[i], counts[i])
-            print(result_np[result_np[:, 4] == classes[i]])
-            # x1 = result_np[result_np[:, 4] == classes[i]][:, 0]
-            x = result_np[result_np[:, 4] == classes[i]][:, 0:4]
-            print(x)
-            print(np.mean(x, axis=0).round())
+        result_show = []
+        for i in range(len(tracks)):
+            # print("tracks[i]", tracks[i], "counts[i]", counts[i])
+            if counts[i] > n:
+                track_np = result_np[result_np[:, 5] == tracks[i]]
+                # print("track_np", track_np)
+                coords_np = track_np[:, 0:4]
+                # coords_mean = np.mean(coords_np, axis=0).astype(int).tolist()
+                # print(coords_np[:, 0])
+                # print(coords_np[:, 1])
+                # print(coords_np[:, 2])
+                # print(coords_np[:, 3])
+                x1 = np.mean(coords_np[:, 0], axis=0).astype(int)
+                y1 = np.mean(coords_np[:, 1], axis=0).astype(int)
+                x2 = np.mean(coords_np[:, 2], axis=0).astype(int)
+                y2 = np.mean(coords_np[:, 3], axis=0).astype(int)
 
+                # coords_mean = coords_np[0].astype(int).tolist()
+                # print("coords_mean", coords_mean)
+                # result_show.append([coords_mean, 1, track_np[0, 4], tracks[i]])
+                result_show.append([(x1, y1, x2, y2), 1, track_np[0, 4], tracks[i]])
+                # print("?", result_show[-1])
 
-    # TODO: В дальнейшем результат = обработанный аккумулятор. Временно берем последний предикт
-    result = acc_result[-1] if len(acc_result) > 0 else []
-
-    for res in result:
+    #
+    # result_show = acc_result[-1] if len(acc_result) > 0 else []
+    for res in result_show:
         # print("res", res)
         (X1, Y1, X2, Y2), _, class_id, track_id = res
-        # COLOR = colors[class_id]
+        # print((X1, Y1, X2, Y2), class_id, track_id)
+        #
         COLOR = colors[track_id]
+        #
         frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
         frame = cv.putText(frame, names[class_id], (X1, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
 
