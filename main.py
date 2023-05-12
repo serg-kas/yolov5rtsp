@@ -10,7 +10,7 @@ from random import randint
 import utils_small as u
 
 #
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=7&subtype=0'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 DEBUG = False        # флаг отладочных сообщений
@@ -40,10 +40,10 @@ if DEBUG:
     print("Детектим классов: {}".format(len(classes_list)))
 
 #
-pattern_base_name = 'oven'
+pattern_base_name = 'toilet'
 pattern_base = names.index(pattern_base_name)
 #
-patterns_to_recognize = ['oven']
+patterns_to_recognize = ['toilet']
 assert len(patterns_to_recognize) > 0
 patterns = []
 for idx, name in enumerate(names):
@@ -319,8 +319,13 @@ while True:
             if (abs(Xc - Xc_pat) < def_W / 10) and (abs(Yc - Yc_pat) < def_W / 10):
                 if DEBUG:
                     print("Паттерн найден: {} with {}".format(names[class_id], names[class_id_pat]))
-                pattern_txt_list.append("Attention, found {} with {}".format(names[class_id], names[class_id_pat]))
-    # print(pattern_txt_list)
+                pattern_txt_list.append("Attention, found: {} with {}".format(names[class_id], names[class_id_pat]))
+    #
+    if len(pattern_txt_list) > 0:
+        print(pattern_txt_list)
+        # TODO: послать сообщение в телегу
+
+
     #
     if result_show is not None:
         for res in result_show:
