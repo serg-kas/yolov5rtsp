@@ -13,12 +13,12 @@ import utils_small as u
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
-DEBUG = False       # флаг отладочных сообщений
-RES_to_list = False # сохранять и обрабатывать результаты предикта в списке
-def_W = 800         # целевая ширина фрейма для отображения
+DEBUG = True        # флаг отладочных сообщений
+RES_to_list = False  # сохранять и обрабатывать результаты предикта в списке
+def_W = 800          # целевая ширина фрейма для отображения
 #
 colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]  # случайные цвета по числу треков
-track = 0           # начальный номер трека
+track = 1            # начальный номер трека
 #
 names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
          'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
@@ -50,7 +50,7 @@ class MyThread (threading.Thread):
         #
         self.result_to_list = RES_to_list
         #
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5m', pretrained=True)
 
         # self.model.conf = 0.25  # confidence threshold (0-1)
         # self.model.iou = 0.45  # NMS IoU threshold (0-1)
@@ -106,22 +106,23 @@ myThread = MyThread()
 myThread.start()
 
 #
-N = 50  # размер аккумулятора, предиктов
-n = 20  # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
+N = 60  # размер аккумулятора, предиктов
+n = 30  # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
 assert n <= N
 
 #
-acc_result = [] if RES_to_list else None   # аккумулируемый результат предиктов
-result_show = [] if RES_to_list else None  # список объектов для  отображения на фрейме
+acc_result = [] if RES_to_list else None          # аккумулируемый результат предиктов
+result_show = [] if RES_to_list else None         # список объектов для  отображения на фрейме
 #
-acc_result_np = np.full((1, 7), -1, dtype=np.int32)  # аккумулируемый результат предиктов numpy
+acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
+acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек
 #
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
         if frame is not None:
-            if frame.shape[0] > 0 and frame.shape[1] > 0:
+            if frame.shape[0] > 200 and frame.shape[1] > 200:
                 if DEBUG:
                     print("Получен новый фрейм")
                 #
@@ -224,29 +225,31 @@ while True:
             new_result_np = myThread.result
             #
             for i in range(new_result_np.shape[0]):
-                new_obj_coord = tuple(new_result_np[i, 0:4].astype(np.int32))
+                new_obj_coord = list(new_result_np[i, 0:4].astype(np.int32))
                 new_obj = int(new_result_np[i, 5])
                 # print(new_obj_coord, new_obj)
                 #
                 obj_recognized = False
                 for k in range(acc_result_np.shape[0]):
-                    obj_coord = tuple(acc_result_np[k, 0:4])
+                    obj_coord = list(acc_result_np[k, 0:4])
                     obj = int(acc_result_np[k, 5])
                     obj_track = int(acc_result_np[k, 6])
                     # print(obj_coord, obj, obj_track)
                     #
                     if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.25:
+                        # print(u.get_iou(new_obj_coord, obj_coord))
                         if DEBUG:
                             print("Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
                         new_result_np[i, 6] = obj_track
                         obj_recognized = True
                         break
-                    elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.95:
+                    elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.90:
                         if DEBUG:
                             print("Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
                                                                                                       names[new_obj],
                                                                                                       obj_track))
                         new_result_np[i, 6] = obj_track
+
                         obj_recognized = True
                         break
                 if obj_recognized:
@@ -257,16 +260,26 @@ while True:
                         print("Объекту {} присвоен новый трек {}".format(names[new_obj], track))
                     new_result_np[i, 6] = track
                     track += 1 if track < 1000 else 0
-                    #
-            acc_result_np = np.append(acc_result_np, new_result_np, axis=0)
-            if acc_result_np.shape[0] > N:
-                # print(acc_result_np.shape)
-                acc_result_np = acc_result_np[-N:, :]
-                # print(acc_result_np.shape)
             #
-            tracks, counts = np.unique(acc_result_np[:, 6], return_counts=True)
-            print("tracks", tracks, "counts", counts)
+            new_result_to_add = new_result_np[new_result_np[:, 6] != -1]
+            acc_result_np = np.append(acc_result_np, new_result_to_add, axis=0)
+            if acc_result_np.shape[0] > N:
+                acc_result_np = acc_result_np[-N:, :]
+            # print(acc_result_np.shape, acc_result_np)
 
+            tracks, counts = np.unique(acc_result_np[:, 6], return_counts=True)
+            # print("tracks", tracks, "counts", counts)
+
+            result_show = []
+            for i in range(len(tracks)):
+                # print("tracks[i]", tracks[i], "counts[i]", counts[i])
+                if counts[i] > n:
+                    track_np = acc_result_np[acc_result_np[:, 6] == tracks[i]]
+                    coords_np = track_np[:, 0:4]
+                    coords_mean = tuple(np.mean(coords_np, axis=0).astype(int))
+                    #
+                    result_show.append([coords_mean, 1, int(track_np[0, 5]), int(tracks[i])])
+                    # print("result_show[-1]", result_show[-1])
 
     #
     if result_show is not None:
