@@ -2,12 +2,10 @@
 Функции различного назначения
 """
 import numpy as np
-import math
-import cv2 as cv
+# import cv2 as cv
 # from PIL import Image
 # from PIL import Image, ImageDraw, ImageFont
-import os
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # ####################### Цвета RGB #######################
 black = (0, 0, 0)
