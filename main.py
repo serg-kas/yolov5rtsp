@@ -14,7 +14,7 @@ RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&su
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 DEBUG = False       # флаг отладочных сообщений
-RES_to_list = True  # сохранять и обрабатывать результаты предикта в списке
+RES_to_list = False # сохранять и обрабатывать результаты предикта в списке
 def_W = 800         # целевая ширина фрейма для отображения
 #
 colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]  # случайные цвета по числу треков
@@ -87,6 +87,8 @@ class MyThread (threading.Thread):
             else:
                 # Формируем результаты в массив numpy
                 result_numpy = results.numpy()
+                track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 - номер трека по умолчанию
+                result_numpy = np.append(result_numpy, track_numpy, axis=1)
                 #
                 self.result = result_numpy
                 self.image = None
@@ -111,6 +113,8 @@ assert n <= N
 #
 acc_result = [] if RES_to_list else None   # аккумулируемый результат предиктов
 result_show = [] if RES_to_list else None  # список объектов для  отображения на фрейме
+#
+acc_result_np = np.full((1, 7), -1, dtype=np.int32)  # аккумулируемый результат предиктов numpy
 #
 while True:
     # получаем новый фрейм
@@ -206,38 +210,75 @@ while True:
                 # print("tracks[i]", tracks[i], "counts[i]", counts[i])
                 if counts[i] > n:
                     track_np = result_np[result_np[:, 5] == tracks[i]]
-                    # print("track_np", track_np)
                     coords_np = track_np[:, 0:4]
-                    # coords_mean = np.mean(coords_np, axis=0).astype(int).tolist()
-                    # print(coords_np[:, 0])
-                    # print(coords_np[:, 1])
-                    # print(coords_np[:, 2])
-                    # print(coords_np[:, 3])
-                    x1 = np.mean(coords_np[:, 0], axis=0).astype(int)
-                    y1 = np.mean(coords_np[:, 1], axis=0).astype(int)
-                    x2 = np.mean(coords_np[:, 2], axis=0).astype(int)
-                    y2 = np.mean(coords_np[:, 3], axis=0).astype(int)
-
-                    # coords_mean = coords_np[0].astype(int).tolist()
-                    # print("coords_mean", coords_mean)
-                    # result_show.append([coords_mean, 1, track_np[0, 4], tracks[i]])
-                    result_show.append([(x1, y1, x2, y2), 1, track_np[0, 4], tracks[i]])
-                    print("?", result_show[-1])
+                    coords_mean = tuple(np.mean(coords_np, axis=0).astype(int))
+                    #
+                    result_show.append([coords_mean, 1, track_np[0, 4], tracks[i]])
+                    # print("result_show[-1]", result_show[-1])
 
         # Обрабатываем numpy
         else:
-            print("Обработка numpy не готова")
+            if DEBUG:
+                print("Получен результат numpy, размерности {}".format(myThread.result.shape))
+            #
+            new_result_np = myThread.result
+            #
+            for i in range(new_result_np.shape[0]):
+                new_obj_coord = tuple(new_result_np[i, 0:4].astype(np.int32))
+                new_obj = int(new_result_np[i, 5])
+                # print(new_obj_coord, new_obj)
+                #
+                obj_recognized = False
+                for k in range(acc_result_np.shape[0]):
+                    obj_coord = tuple(acc_result_np[k, 0:4])
+                    obj = int(acc_result_np[k, 5])
+                    obj_track = int(acc_result_np[k, 6])
+                    # print(obj_coord, obj, obj_track)
+                    #
+                    if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.25:
+                        if DEBUG:
+                            print("Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
+                        new_result_np[i, 6] = obj_track
+                        obj_recognized = True
+                        break
+                    elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.95:
+                        if DEBUG:
+                            print("Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
+                                                                                                      names[new_obj],
+                                                                                                      obj_track))
+                        new_result_np[i, 6] = obj_track
+                        obj_recognized = True
+                        break
+                if obj_recognized:
+                    break
+                    #
+                if not obj_recognized:
+                    if DEBUG:
+                        print("Объекту {} присвоен новый трек {}".format(names[new_obj], track))
+                    new_result_np[i, 6] = track
+                    track += 1 if track < 1000 else 0
+                    #
+            acc_result_np = np.append(acc_result_np, new_result_np, axis=0)
+            if acc_result_np.shape[0] > N:
+                # print(acc_result_np.shape)
+                acc_result_np = acc_result_np[-N:, :]
+                # print(acc_result_np.shape)
+            #
+            tracks, counts = np.unique(acc_result_np[:, 6], return_counts=True)
+            print("tracks", tracks, "counts", counts)
+
 
     #
-    for res in result_show:
-        (X1, Y1, X2, Y2), _, class_id, track_id = res
-        # print((X1, Y1, X2, Y2), class_id, track_id)
-        #
-        COLOR = colors[track_id]
-        #
-        frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
-        frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
-        frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+    if result_show is not None:
+        for res in result_show:
+            (X1, Y1, X2, Y2), _, class_id, track_id = res
+            # print((X1, Y1, X2, Y2), class_id, track_id)
+            #
+            COLOR = colors[track_id]
+            #
+            frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
+            frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+            frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
 
     #
     cv.imshow(RTSP_URL, frame)
