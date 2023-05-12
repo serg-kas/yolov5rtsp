@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import threading
 import os
+import time
 from time import sleep
 from random import randint
 #
@@ -129,6 +130,8 @@ result_show = [] if RES_to_list else None         # список объекто�
 #
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек
+#
+start = time.time()  # начало засечки времени
 #
 while True:
     # получаем новый фрейм
@@ -319,12 +322,14 @@ while True:
             if (abs(Xc - Xc_pat) < def_W / 10) and (abs(Yc - Yc_pat) < def_W / 10):
                 if DEBUG:
                     print("Паттерн найден: {} with {}".format(names[class_id], names[class_id_pat]))
-                pattern_txt_list.append("Attention, found: {} with {}".format(names[class_id], names[class_id_pat]))
+                pattern_txt_list.append("Attention ! Found: {} with {}".format(names[class_id], names[class_id_pat]))
     #
     if len(pattern_txt_list) > 0:
-        print(pattern_txt_list)
-        # TODO: послать сообщение в телегу
-
+        end = time.time()
+        if end - start > 5:
+            print(pattern_txt_list, end - start)
+            # TODO: послать сообщение в телегу
+            start = time.time()
 
     #
     if result_show is not None:
