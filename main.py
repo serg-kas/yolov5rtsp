@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import threading
 import os
-from random import randint
 from time import sleep
+from random import randint
 #
 import utils_small as u
 
@@ -13,7 +13,7 @@ import utils_small as u
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
-DEBUG = True        # флаг отладочных сообщений
+DEBUG = False        # флаг отладочных сообщений
 RES_to_list = False  # сохранять и обрабатывать результаты предикта в списке
 def_W = 800          # целевая ширина фрейма для отображения
 #
@@ -37,7 +37,20 @@ for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
 if DEBUG:
-    print("Распознаем классов: {}".format(len(classes_list)))
+    print("Детектим классов: {}".format(len(classes_list)))
+
+#
+pattern_base_name = 'oven'
+pattern_base = names.index(pattern_base_name)
+#
+patterns_to_recognize = ['oven']
+assert len(patterns_to_recognize) > 0
+patterns = []
+for idx, name in enumerate(names):
+    if name in patterns_to_recognize:
+        patterns.append(idx)
+if DEBUG:
+    print("Распознаем базовый паттерн {} и остальные: {}".format(pattern_base_name, patterns_to_recognize))
 
 
 # Класс потока, в котором запускаем НС
@@ -281,6 +294,33 @@ while True:
                     result_show.append([coords_mean, 1, int(track_np[0, 5]), int(tracks[i])])
                     # print("result_show[-1]", result_show[-1])
 
+    # TODO: алгоритм оптимизировать и переделать в numpy
+    base_pattern_list = []
+    patterns_found_list = []
+    if result_show is not None:
+        for res in result_show:
+            (X1, Y1, X2, Y2), _, class_id, track_id = res
+            if class_id == pattern_base:
+                base_pattern_list.append(res)
+            # elif class_id in patterns:
+            if class_id in patterns:
+                patterns_found_list.append(res)
+    # print(base_pattern_list)
+    # print(patterns_found_list)
+    pattern_txt_list = []
+    for base in base_pattern_list:
+        (X1, Y1, X2, Y2), _, class_id, track_id = base
+        Xc = (X1 + X2) / 2
+        Yc = (Y1 + Y2) / 2
+        for pat in patterns_found_list:
+            (X1pat, Y1pat, X2pat, Y2pat), _, class_id_pat, track_id_pat = pat
+            Xc_pat = (X1pat + X2pat) / 2
+            Yc_pat = (Y1pat + Y2pat) / 2
+            if (abs(Xc - Xc_pat) < def_W / 10) and (abs(Yc - Yc_pat) < def_W / 10):
+                if DEBUG:
+                    print("Паттерн найден: {} with {}".format(names[class_id], names[class_id_pat]))
+                pattern_txt_list.append("Attention, found {} with {}".format(names[class_id], names[class_id_pat]))
+    # print(pattern_txt_list)
     #
     if result_show is not None:
         for res in result_show:
@@ -292,6 +332,10 @@ while True:
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
             frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
             frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+        #
+        for pattern_txt in pattern_txt_list:
+            # print(pattern_txt)
+            frame = cv.putText(frame, pattern_txt, (30, 30), cv.FONT_HERSHEY_SIMPLEX, fontScale=1, color=u.red, thickness=2)
 
     #
     cv.imshow(RTSP_URL, frame)
