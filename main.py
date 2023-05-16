@@ -15,7 +15,8 @@ RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&su
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 #
 DEBUG = False        # флаг отладочных сообщений
-RES_to_list = False  # сохранять и обрабатывать результаты предикта в списке
+RES_to_list = False  # сохранять и обрабатывать результаты предикта в списках (устаревшие функции)
+model_W = 640        # целевая ширина фрейма для подачи в модель
 def_W = 800          # целевая ширина фрейма для отображения
 #
 colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]  # случайные цвета по числу треков
@@ -31,28 +32,27 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush']
 #
-# names_to_detect = names
-names_to_detect = ['person', 'microwave']
+names_to_detect = names
+# names_to_detect = ['person', 'laptop', 'bottle', 'microwave']
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
 if DEBUG:
-    print("Детектируем, классов: {}".format(len(classes_list)))
+    print("Детектируем, индексы классов: {}".format(classes_list))
 
-# #############################################################
-# pattern_names = ['person', 'microwave']
-pattern_names = names_to_detect
+#
+pattern_names = ['person', 'laptop']
 pattern_list = []
 for idx, name in enumerate(names):
     if name in pattern_names:
         pattern_list.append(idx)
 if DEBUG:
-    print("Распознаем паттерн, классов: {}".format(len(pattern_list)))
-# #############################################################
+    print("Распознаем паттерны, индексы классов: {}".format(pattern_list))
 
 
-# Класс потока, в котором запускаем НС
+# #############################################################################
+# Поток, в котором запускаем модель
 class MyThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -62,8 +62,7 @@ class MyThread (threading.Thread):
         #
         self.result_to_list = RES_to_list
         #
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5m', pretrained=True)
-
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
         # self.model.conf = 0.25  # confidence threshold (0-1)
         # self.model.iou = 0.45  # NMS IoU threshold (0-1)
 
@@ -78,11 +77,10 @@ class MyThread (threading.Thread):
             if self.image is None:
                 if DEBUG:
                     print("Нейронка свободна, но фрейма для предикта нет")
-                sleep(0.01)  # пробовал 0.5, 1
+                sleep(0.01)
                 continue
             #
             results = self.model([self.image]).xyxy[0]
-            # results = model([self.image]).xyxy[0]
 
             if self.result_to_list:
                 # Формируем результаты в список
@@ -99,14 +97,25 @@ class MyThread (threading.Thread):
             else:
                 # Формируем результаты в массив numpy
                 result_numpy = results.numpy()
+                #
+                if len(classes_list) == 1:
+                    result_numpy = result_numpy[result_numpy[:, 5] == classes_list[0]]
+                elif 1 < len(classes_list) < 80:
+                    result_numpy_short = result_numpy[result_numpy[:, 5] == classes_list[0]]
+                    for class_idx in range(1, len(classes_list)):
+                        row = result_numpy[result_numpy[:, 5] == classes_list[class_idx]]
+                        result_numpy_short = np.append(result_numpy_short, row, axis=0)
+                    result_numpy = result_numpy_short
+                #
                 track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 - номер трека по умолчанию
                 result_numpy = np.append(result_numpy, track_numpy, axis=1)
+                # print(result_numpy.shape)
                 #
                 self.result = result_numpy
                 self.image = None
 
 
-#
+# #############################################################################
 cap = cv.VideoCapture(RTSP_URL)
 if not cap.isOpened():
     raise IOError("Cannot open cam")
@@ -130,24 +139,31 @@ acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек
 #
 start = time.time()  # начало засечки времени
-#
+
+# #############################################################################
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
         if frame is not None:
-            if frame.shape[0] > 200 and frame.shape[1] > 200:
+            if frame.shape[0] > 0 and frame.shape[1] > 0:
                 if DEBUG:
                     print("Получен новый фрейм")
                 #
+                frame_copy = frame.copy()
+                frame_copy = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+                #
                 h, w = frame.shape[:2]
-                W = def_W
+                W = model_W
                 H = int(W / w * h)
+                frame_copy = cv.resize(frame_copy, (W, H), interpolation=cv.INTER_AREA)
+
+                # TODO: фрейм для показа надо резайзить в размер Def_W
                 frame = cv.resize(frame, (W, H), interpolation=cv.INTER_AREA)
 
                 # засылаем новый фрейм на предикт
                 if myThread.image is None:
-                    myThread.image = frame.copy()
+                    myThread.image = frame_copy.copy()
                     if DEBUG:
                         print("Новый фрейм подан на предикт")
                 else:
@@ -242,9 +258,6 @@ while True:
                 new_obj_coord = list(new_result_np[i, 0:4].astype(np.int32))
                 new_obj = int(new_result_np[i, 5])
                 # print(new_obj_coord, new_obj)
-                if new_obj not in classes_list:
-                    # print("Пропускаем объект не из списка classes_list")
-                    continue
                 #
                 obj_recognized = False
                 for k in range(acc_result_np.shape[0]):
@@ -266,7 +279,6 @@ while True:
                                                                                                       names[new_obj],
                                                                                                       obj_track))
                         new_result_np[i, 6] = obj_track
-
                         obj_recognized = True
                         break
                 if obj_recognized:
@@ -328,10 +340,10 @@ while True:
         Xc_pat = (X1_pat + X2_pat) / 2
         Yc_pat = (Y1_pat + Y2_pat) / 2
         # условие "близости"
-        if (abs(Xc_person - X1_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
+        if (abs(Xc_person - X1_pat) < model_W / 2) and (abs(Yc_person - Yc_pat) < model_W / 2):
             if DEBUG:
                 print("Паттерн найден: {}".format(pattern_names))
-            pattern_txt = "Attention ! Found: person with {}".format(pattern_names)
+            pattern_txt = "Attention ! Found: {}".format(pattern_names)
             X1_show = min(X1_person, X1_pat)
             Y1_show = min(Y1_person, Y1_pat)
             X2_show = max(X2_person, X2_pat)
