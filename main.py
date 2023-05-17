@@ -31,8 +31,8 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush']
 
-names_to_detect = names
-# names_to_detect = ['person', 'laptop', 'bottle', 'microwave']
+# names_to_detect = names
+names_to_detect = ['person', 'laptop', 'bottle', 'microwave']
 # names_to_detect = ['person', 'laptop']
 classes_list = []
 for idx, name in enumerate(names):
@@ -42,9 +42,9 @@ if DEBUG:
     print("Детектируем классы, индексы: {}".format(classes_list))
 
 #
-# pattern_names = ['person', 'bottle']
+pattern_names = ['person', 'bottle']
 # pattern_names = ['person', 'laptop']
-pattern_names = ['person', 'bowl']
+# pattern_names = ['person', 'bowl']
 pattern_list = []
 for idx, name in enumerate(names):
     if name in pattern_names:
@@ -104,9 +104,10 @@ myThread.start()
 #
 result_show = None                                # список объектов для отображения на фрейме
 #
-N = 30  # размер аккумулятора, предиктов
-n = 3   # сколько детекций объекта в аккумуляторе считаем достоверной детекцией
-assert n <= N
+N_acc = 50    # размер аккумулятора, предиктов
+N_pred = 1    # при скольких предиктах объекта в аккумуляторе показываем объект
+N_coord = 3   # по скольки последним предиктам усредняем bb
+assert N_pred <= N_acc and N_coord < N_acc
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек -1
 #
@@ -185,72 +186,26 @@ while True:
         new_result_to_add = new_result_np[new_result_np[:, 6] != -1]
         acc_result_np = np.append(acc_result_np, new_result_to_add, axis=0)
 
-        if acc_result_np.shape[0] > N:
-            acc_result_np = acc_result_np[-N:, :]
+        if acc_result_np.shape[0] > N_acc:
+            acc_result_np = acc_result_np[-N_acc:, :]
         # print(acc_result_np.shape, acc_result_np)
 
+        # Получаем уникальные номера треков и их количество в аккумуляторе
         tracks, counts = np.unique(acc_result_np[:, 6], return_counts=True)
         # print("tracks", tracks, "counts", counts)
 
         result_show = []
         for i in range(len(tracks)):
             # print("tracks[i]", tracks[i], "counts[i]", counts[i])
-            if counts[i] > n:
+            if counts[i] > N_pred:
                 track_np = acc_result_np[acc_result_np[:, 6] == tracks[i]]
                 coords_np = track_np[:, 0:4]
+                if coords_np.shape[0] > N_coord:
+                    coords_np = coords_np[-N_coord:, :]
                 coords_mean = tuple(np.mean(coords_np, axis=0).astype(int))
                 #
                 result_show.append([coords_mean, 1, int(track_np[0, 5]), int(tracks[i])])
                 # print("result_show[-1]", result_show[-1])
-
-    # TODO: алгоритм временный для демонстрации
-    person_coords = [-1, -1, -1, -1]
-    pattern_coord_list = []
-    if result_show is not None:
-        for res in result_show:
-            (X1, Y1, X2, Y2), _, class_id, track_id = res
-            if class_id == 0:
-                person_coords = [X1, Y1, X2, Y2]
-                continue
-            if class_id in pattern_list and class_id != 0:
-                pattern_coord_list.append([X1, Y1, X2, Y2])
-    # print(pattern_coord_list)
-    pattern_txt = ""
-    pattern_show_coord = [-1, -1, -1, -1]
-    if -1 not in person_coords and len(pattern_coord_list) > 0:
-        pattern_coord_np = np.array(pattern_coord_list)
-        # print(pattern_coord_np.shape, pattern_coord_list)
-
-        # координаты person
-        X1_person, Y1_person, X2_person, Y2_person = person_coords
-        Xc_person = (X1_person + X2_person) / 2
-        Yc_person = (Y1_person + Y2_person) / 2
-        # координаты паттерна
-        X1_pat = np.min(pattern_coord_np[:, 0])
-        Y1_pat = np.min(pattern_coord_np[:, 1])
-        X2_pat = np.max(pattern_coord_np[:, 2])
-        Y2_pat = np.max(pattern_coord_np[:, 3])
-        Xc_pat = (X1_pat + X2_pat) / 2
-        Yc_pat = (Y1_pat + Y2_pat) / 2
-        # условие "близости"
-        if (abs(Xc_person - X1_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
-            if DEBUG:
-                print("Паттерн найден: {}".format(pattern_names))
-            pattern_txt = "Attention ! Found: {}".format(pattern_names)
-            X1_show = min(X1_person, X1_pat)
-            Y1_show = min(Y1_person, Y1_pat)
-            X2_show = max(X2_person, X2_pat)
-            Y2_show = max(Y2_person, Y2_pat)
-            pattern_show_coord = [X1_show, Y1_show, X2_show, Y2_show]
-
-    #
-    if len(pattern_txt) > 0:
-        end = time.time()
-        if end - start > 5:
-            print(pattern_txt, end - start)
-            # TODO: послать сообщение в телегу
-            start = time.time()
-
     #
     if result_show is not None:
         for res in result_show:
@@ -260,13 +215,59 @@ while True:
             COLOR = colors[track_id]
             #
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
-            frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
-            frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+            frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10),
+                               cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+            frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20),
+                               cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
+
+        # TODO: алгоритм поиска паттернов временный, для демонстрации
+        person_coords = [-1, -1, -1, -1]
+        pattern_coord_list = []
+        #
+        for res in result_show:
+            (X1, Y1, X2, Y2), _, class_id, track_id = res
+            if class_id == 0:
+                person_coords = [X1, Y1, X2, Y2]
+                continue
+            if class_id in pattern_list and class_id != 0:
+                pattern_coord_list.append([X1, Y1, X2, Y2])
+        # print(pattern_coord_list)
+        pattern_txt = ""
+        pattern_show_coord = [-1, -1, -1, -1]
+        if -1 not in person_coords and len(pattern_coord_list) > 0:
+            pattern_coord_np = np.array(pattern_coord_list)
+            # координаты person
+            X1_person, Y1_person, X2_person, Y2_person = person_coords
+            Xc_person = (X1_person + X2_person) / 2
+            Yc_person = (Y1_person + Y2_person) / 2
+            # координаты паттерна
+            X1_pat = np.min(pattern_coord_np[:, 0])
+            Y1_pat = np.min(pattern_coord_np[:, 1])
+            X2_pat = np.max(pattern_coord_np[:, 2])
+            Y2_pat = np.max(pattern_coord_np[:, 3])
+            Xc_pat = (X1_pat + X2_pat) / 2
+            Yc_pat = (Y1_pat + Y2_pat) / 2
+            # условие "близости"
+            if (abs(Xc_person - X1_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
+                if DEBUG:
+                    print("Паттерн найден: {}".format(pattern_names))
+                pattern_txt = "Attention: {}".format(pattern_names)
+                X1_show = min(X1_person, X1_pat)
+                Y1_show = min(Y1_person, Y1_pat)
+                X2_show = max(X2_person, X2_pat)
+                Y2_show = max(Y2_person, Y2_pat)
+                pattern_show_coord = [X1_show, Y1_show, X2_show, Y2_show]
         #
         if len(pattern_txt) > 0:
             X1, Y1, X2, Y2 = pattern_show_coord
-            frame = cv.putText(frame, pattern_txt, (30, 30), cv.FONT_HERSHEY_SIMPLEX, fontScale=1, color=u.red, thickness=2)
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), u.red, thickness=2)
+            frame = cv.putText(frame, pattern_txt, (X1, Y1 + 15), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.6, color=u.red, thickness=2)
+            #
+            end = time.time()
+            if end - start > 5:
+                print(pattern_txt, end - start)
+                # TODO: послать сообщение в телегу
+                start = time.time()
 
     #
     cv.imshow(RTSP_URL, frame)
@@ -277,7 +278,6 @@ while True:
             print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
         myThread.stop = True
         break
-
 #
 if DEBUG:
     print("Отключаем capture, закрываем все окна")
