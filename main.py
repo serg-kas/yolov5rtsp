@@ -7,16 +7,30 @@ import os
 import time
 from time import sleep
 from random import randint
+import urllib.request
+import json
+import subprocess
 #
 import utils_small as u
 
 #
 DEBUG = False        # флаг отладочных сообщений
 #
-os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
-#
+SHOW_VIDEO = True    # показывать видео
 def_W = 800          # целевая ширина фрейма для обработки и отображения
+#
+
+# #############################################################################
+url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
+with urllib.request.urlopen(url_json) as url:
+    data = json.load(url)
+    # print(data[0]['in'])
+    RTSP_URL = data[0]['in']['url']
+#
+os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
+# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+# #############################################################################
+
 #
 colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]  # случайные цвета по числу треков
 track = 1            # начальный номер трека
@@ -32,8 +46,8 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'hair drier', 'toothbrush']
 
 # names_to_detect = names
-names_to_detect = ['person', 'laptop', 'bottle', 'microwave']
-# names_to_detect = ['person', 'laptop']
+names_to_detect = ['person', 'laptop', 'bottle', 'microwave', 'car', 'dog']
+# names_to_detect = ['person', 'laptop', 'car']
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
@@ -42,8 +56,8 @@ if DEBUG:
     print("Детектируем классы, индексы: {}".format(classes_list))
 
 #
-pattern_names = ['person', 'bottle']
-# pattern_names = ['person', 'laptop']
+# pattern_names = ['person', 'car']
+pattern_names = ['person', 'laptop']
 # pattern_names = ['person', 'bowl']
 pattern_list = []
 for idx, name in enumerate(names):
@@ -54,6 +68,29 @@ if DEBUG:
 
 
 # #############################################################################
+def send_image(image, bot_token, chat_id):
+    #
+    image_file = 'tmp.jpg'
+    cv.imwrite(image_file, image)
+    #
+    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
+              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
+    subprocess.call(command.split(' '))
+    return
+
+
+# url_tg = "https://api.telegram.org" \
+#          "/bot6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs/sendMessage?chat_id=47989888&text=attention"
+
+url_tg = "https://api.telegram.org" \
+         "/bot6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs/sendMessage?chat_id=1443607497&text=attention"
+
+bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
+chat_Id = "1443607497"
+
+# #############################################################################
+
+
 class MyThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -94,7 +131,7 @@ class MyThread (threading.Thread):
 # #############################################################################
 cap = cv.VideoCapture(RTSP_URL)
 if not cap.isOpened():
-    raise IOError("Cannot open cam")
+    raise IOError("Cannot open cam: {}".format(RTSP_URL))
 else:
     if DEBUG:
         print("Подключили capture: {}".format(RTSP_URL))
@@ -106,12 +143,15 @@ result_show = None                                # список объекто�
 #
 N_acc = 50    # размер аккумулятора, предиктов
 N_pred = 1    # при скольких предиктах объекта в аккумуляторе показываем объект
-N_coord = 3   # по скольки последним предиктам усредняем bb
+N_coord = 3   # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
+#
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек -1
 #
-start = time.time()  # начало засечки времени
+prev_frame = None  # Предыдущий фрейм если не готов новый
+#
+start = time.time()  # Начало засечки времени
 
 # #############################################################################
 while True:
@@ -121,7 +161,8 @@ while True:
         if DEBUG:
             print("Получен новый фрейм")
         #
-        frame = frame.copy()  # TODO: ??
+        frame = frame.copy()  # TODO: это помогает от сбоев ?
+        #
         h, w = frame.shape[:2]
         W = def_W
         H = int(W / w * h)
@@ -220,7 +261,7 @@ while True:
             frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20),
                                cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
 
-        # TODO: алгоритм поиска паттернов временный, для демонстрации
+        # TODO: алгоритм поиска = близость центра person и усредненного центра остальных объектов
         person_coords = [-1, -1, -1, -1]
         pattern_coord_list = []
         #
@@ -261,23 +302,37 @@ while True:
         if len(pattern_txt) > 0:
             X1, Y1, X2, Y2 = pattern_show_coord
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), u.red, thickness=2)
-            frame = cv.putText(frame, pattern_txt, (X1, Y1 + 15), cv.FONT_HERSHEY_SIMPLEX, fontScale=0.6, color=u.red, thickness=2)
+            frame = cv.putText(frame, pattern_txt, (X1, Y1 + 15),
+                               cv.FONT_HERSHEY_SIMPLEX, fontScale=0.6, color=u.red, thickness=2)
             #
-            end = time.time()
-            if end - start > 5:
-                print(pattern_txt, end - start)
-                # TODO: послать сообщение в телегу
+            msg_time = time.time()
+            if msg_time - start > 20:
                 start = time.time()
 
+                # Сообщение в телегу
+                # with urllib.request.urlopen(url_tg) as response:
+                #     html = response.read()
+                #     print(html)
+
+                # Изображение в телегу
+                send_image(frame, bot_Token, chat_Id)
+
     #
-    cv.imshow(RTSP_URL, frame)
-    #
-    c = cv.waitKey(1)
-    if c == 27:
-        if DEBUG:
-            print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
-        myThread.stop = True
-        break
+    if SHOW_VIDEO:
+        if frame is not None:
+            cv.imshow(RTSP_URL, frame)
+            #
+            prev_frame = frame.copy()
+            prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
+        else:
+            cv.imshow(RTSP_URL, prev_frame)
+            #
+        c = cv.waitKey(1)
+        if c == 27:
+            if DEBUG:
+                print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
+            myThread.stop = True
+            break
 #
 if DEBUG:
     print("Отключаем capture, закрываем все окна")
