@@ -17,18 +17,17 @@ import utils_small as u
 DEBUG = False        # флаг отладочных сообщений
 #
 SHOW_VIDEO = True    # показывать видео
-def_W = 800          # целевая ширина фрейма для обработки и отображения
+def_W = 800          # целевая ширина фрейма для обработки и показа изображения
 #
 
 # #############################################################################
 url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
 with urllib.request.urlopen(url_json) as url:
     data = json.load(url)
-    # print(data[0]['in'])
+    #
     RTSP_URL = data[0]['in']['url']
-#
-os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
-# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 # #############################################################################
 
 #
@@ -129,6 +128,7 @@ class MyThread (threading.Thread):
 
 
 # #############################################################################
+os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 cap = cv.VideoCapture(RTSP_URL)
 if not cap.isOpened():
     raise IOError("Cannot open cam: {}".format(RTSP_URL))
