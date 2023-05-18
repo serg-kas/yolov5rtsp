@@ -40,6 +40,7 @@ with urllib.request.urlopen(url_json) as url:
     RTSP_URL = data[0]['in']['url']
     chat_Id_admin = data[1]['out']['telegram']
     chat_Id = data[0]['out']['telegram']
+    print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
 
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
 # chat_Id_admin = "47989888"
@@ -47,6 +48,7 @@ bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
 # url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=attention"
 # url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=attention"
 # RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
 # #############################################################################
 
 #
@@ -84,10 +86,6 @@ if DEBUG:
 
 
 # #############################################################################
-
-
-# #############################################################################
-
 
 class MyThread (threading.Thread):
     def __init__(self):
@@ -140,7 +138,7 @@ myThread.start()
 #
 result_show = None                                # список объектов для отображения на фрейме
 #
-N_acc = 50    # размер аккумулятора, предиктов
+N_acc = 5    # размер аккумулятора, предиктов
 N_pred = 1    # при скольких предиктах объекта в аккумуляторе показываем объект
 N_coord = 3   # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
@@ -314,7 +312,7 @@ while True:
                 #     print(html)
 
                 # Изображение в телегу
-                send_image(frame, bot_Token, chat_Id_admin)
+                # send_image(frame, bot_Token, chat_Id_admin)
                 send_image(frame, bot_Token, chat_Id)
 
     #
