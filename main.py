@@ -18,7 +18,19 @@ DEBUG = False        # флаг отладочных сообщений
 #
 SHOW_VIDEO = True    # показывать видео
 def_W = 800          # целевая ширина фрейма для обработки и показа изображения
-#
+
+
+# #############################################################################
+def send_image(image, bot_token, chat_id):
+    #
+    image_file = 'tmp.jpg'
+    cv.imwrite(image_file, image)
+    #
+    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
+              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
+    subprocess.call(command.split(' '))
+    return
+
 
 # #############################################################################
 url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
@@ -26,8 +38,15 @@ with urllib.request.urlopen(url_json) as url:
     data = json.load(url)
     #
     RTSP_URL = data[0]['in']['url']
+    chat_Id_admin = data[1]['out']['telegram']
+    chat_Id = data[0]['out']['telegram']
 
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
+# chat_Id_admin = "47989888"
+# chat_Id = "1443607497"
+# url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=attention"
+# url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=attention"
+# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 # #############################################################################
 
 #
@@ -45,8 +64,7 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'hair drier', 'toothbrush']
 
 # names_to_detect = names
-names_to_detect = ['person', 'laptop', 'bottle', 'microwave', 'car', 'dog']
-# names_to_detect = ['person', 'laptop', 'car']
+names_to_detect = ['person', 'laptop', 'bottle']
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
@@ -55,9 +73,8 @@ if DEBUG:
     print("Детектируем классы, индексы: {}".format(classes_list))
 
 #
-# pattern_names = ['person', 'car']
-pattern_names = ['person', 'laptop']
-# pattern_names = ['person', 'bowl']
+# pattern_names = ['person', 'laptop']
+pattern_names = ['person', 'bottle']
 pattern_list = []
 for idx, name in enumerate(names):
     if name in pattern_names:
@@ -67,25 +84,7 @@ if DEBUG:
 
 
 # #############################################################################
-def send_image(image, bot_token, chat_id):
-    #
-    image_file = 'tmp.jpg'
-    cv.imwrite(image_file, image)
-    #
-    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
-              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
-    subprocess.call(command.split(' '))
-    return
 
-
-# url_tg = "https://api.telegram.org" \
-#          "/bot6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs/sendMessage?chat_id=47989888&text=attention"
-
-url_tg = "https://api.telegram.org" \
-         "/bot6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs/sendMessage?chat_id=1443607497&text=attention"
-
-bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
-chat_Id = "1443607497"
 
 # #############################################################################
 
@@ -315,6 +314,7 @@ while True:
                 #     print(html)
 
                 # Изображение в телегу
+                send_image(frame, bot_Token, chat_Id_admin)
                 send_image(frame, bot_Token, chat_Id)
 
     #
