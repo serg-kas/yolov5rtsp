@@ -2,6 +2,7 @@ import numpy as np
 import cv2 as cv
 import torch
 import torch.nn as nn
+# import subprocess
 import threading
 import os
 import time
@@ -9,52 +10,52 @@ from time import sleep
 from random import randint
 import urllib.request
 import json
-import subprocess
+
 #
 import utils_small as u
 
 #
-DEBUG = False        # флаг отладочных сообщений
+DEBUG = False        # флаг вывода отладочных сообщений
 #
 SHOW_VIDEO = True    # показывать видео
 def_W = 800          # целевая ширина фрейма для обработки и показа изображения
 
 
 # #############################################################################
-def send_image(image, bot_token, chat_id):
-    #
-    image_file = 'tmp.jpg'
-    cv.imwrite(image_file, image)
-    #
-    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
-              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
-    subprocess.call(command.split(' '))
-    return
-
-
-# #############################################################################
 url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
+# data = None
 with urllib.request.urlopen(url_json) as url:
     data = json.load(url)
     #
-    RTSP_URL = data[0]['in']['url']
-    chat_Id_admin = data[1]['out']['telegram']
-    chat_Id = data[0]['out']['telegram']
-    print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+    if data is not None:
+        RTSP_URL = data[0]['in']['url']
+        chat_Id_admin = data[1]['out']['telegram']
+        chat_Id = data[0]['out']['telegram']
+        print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+    else:
+        print("Настроек по json получить не удалось, присваиваем дефолтные")
+        RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
+        # RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+        chat_Id_admin = "47989888"
+        chat_Id = "1443607497"
+        print("Дефолтные настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
 
+#
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
-# chat_Id_admin = "47989888"
-# chat_Id = "1443607497"
 # url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=attention"
 # url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=attention"
-# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
-RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
-# #############################################################################
 
-#
-colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]  # случайные цвета по числу треков
-track = 1            # начальный номер трека
-#
+
+RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+
+# #############################################################################
+# Случайные цвета по числу треков
+colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]
+
+# Начальный номер трека
+track = 1
+
+# Имена классов
 names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
          'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
          'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
@@ -65,28 +66,28 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush']
 
-# names_to_detect = names
+# Классы, которые детектим (если все, то = names)
 names_to_detect = ['person', 'laptop', 'bottle']
+#
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
 if DEBUG:
-    print("Детектируем классы, индексы: {}".format(classes_list))
+    print("Детектируем классы. Индексы: {}".format(classes_list))
 
-#
-# pattern_names = ['person', 'laptop']
+# Паттерн (сочетание классов), который ищем
 pattern_names = ['person', 'bottle']
+#
 pattern_list = []
 for idx, name in enumerate(names):
     if name in pattern_names:
         pattern_list.append(idx)
 if DEBUG:
-    print("Распознаем паттерны, индексы: {}".format(pattern_list))
+    print("Распознаем паттерн. Индексы: {}".format(pattern_list))
 
 
 # #############################################################################
-
 class MyThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -116,7 +117,7 @@ class MyThread (threading.Thread):
                 results = self.model([self.image]).xyxy[0]
                 # формируем результаты в массив numpy
                 result_numpy = results.numpy()
-                track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 - номер трека по умолчанию
+                track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 номер трека по умолчанию
                 result_numpy = np.append(result_numpy, track_numpy, axis=1)
                 # print(result_numpy.shape, result_numpy)
                 #
@@ -126,27 +127,35 @@ class MyThread (threading.Thread):
 
 # #############################################################################
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
-cap = cv.VideoCapture(RTSP_URL)
+attempt = 0
+while attempt < 3:
+    cap = cv.VideoCapture(RTSP_URL)
+    if cap.isOpened():
+        if DEBUG:
+            print("Подключили capture: {}".format(RTSP_URL))
+        break
+    attempt += 1
 if not cap.isOpened():
-    raise IOError("Cannot open cam: {}".format(RTSP_URL))
-else:
-    if DEBUG:
-        print("Подключили capture: {}".format(RTSP_URL))
-#
+    # raise IOError("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempt))
+    print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempt))
+    exit(1)
+
+
+# #############################################################################
 myThread = MyThread()
 myThread.start()
 #
-result_show = None                                # список объектов для отображения на фрейме
+result_show = None  # список объектов для отображения на фрейме
 #
-N_acc = 5    # размер аккумулятора, предиктов
-N_pred = 1    # при скольких предиктах объекта в аккумуляторе показываем объект
-N_coord = 3   # по скольки последним предиктам усредняем bb (координаты)
+N_acc = 15     # размер аккумулятора, предиктов
+N_pred = 3     # при скольких предиктах объекта в аккумуляторе показываем объект
+N_coord = 5    # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
 #
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек -1
 #
-prev_frame = None  # Предыдущий фрейм если не готов новый
+prev_frame = None    # предыдущий фрейм если не готов новый
 #
 start = time.time()  # Начало засечки времени
 
@@ -154,11 +163,11 @@ start = time.time()  # Начало засечки времени
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
-    if ret and frame is not None:
+    if ret:
         if DEBUG:
             print("Получен новый фрейм")
         #
-        frame = frame.copy()  # TODO: это помогает от сбоев ?
+        # frame = frame.copy()
         #
         h, w = frame.shape[:2]
         W = def_W
@@ -179,12 +188,11 @@ while True:
 
     #
     if myThread.result is not None:
-        # Обрабатываем результаты
-        if DEBUG:
-            print("Получен результат numpy, размерности {}".format(myThread.result.shape))
-        #
+        # Получаем и обрабатываем результат предикта
         new_result_np = myThread.result
         # print(new_result_np.shape, new_result_np)
+        if DEBUG:
+            print("Получен результат numpy, размерности {}".format(myThread.result.shape))
         #
         for i in range(new_result_np.shape[0]):
             new_obj_coord = list(new_result_np[i, 0:4].astype(np.int32))
@@ -198,7 +206,7 @@ while True:
                 obj_track = int(acc_result_np[k, 6])
                 # print(obj_coord, obj, obj_track)
                 #
-                if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.25:
+                if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.40:
                     # print(u.get_iou(new_obj_coord, obj_coord))
                     if DEBUG:
                         print("Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
@@ -258,7 +266,7 @@ while True:
             frame = cv.putText(frame, 'id ' + str(track_id), (X1 + 5, Y1 + 20),
                                cv.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=COLOR, thickness=1)
 
-        # TODO: алгоритм поиска = близость центра person и усредненного центра остальных объектов
+        # Алгоритм поиска паттерна - близость центра person и усредненного центра остальных объектов
         person_coords = [-1, -1, -1, -1]
         pattern_coord_list = []
         #
@@ -285,7 +293,7 @@ while True:
             Y2_pat = np.max(pattern_coord_np[:, 3])
             Xc_pat = (X1_pat + X2_pat) / 2
             Yc_pat = (Y1_pat + Y2_pat) / 2
-            # условие "близости"
+            # условие "близости" здесь центры ближе половины экрана
             if (abs(Xc_person - X1_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
                 if DEBUG:
                     print("Паттерн найден: {}".format(pattern_names))
@@ -312,8 +320,8 @@ while True:
                 #     print(html)
 
                 # Изображение в телегу
-                # send_image(frame, bot_Token, chat_Id_admin)
-                send_image(frame, bot_Token, chat_Id)
+                # u.send_image_tlg(frame, bot_Token, chat_Id_admin)
+                u.send_image_tlg(frame, bot_Token, chat_Id)
 
     #
     if SHOW_VIDEO:

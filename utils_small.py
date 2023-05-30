@@ -2,10 +2,11 @@
 Функции различного назначения
 """
 import numpy as np
-# import cv2 as cv
+import cv2 as cv
 # from PIL import Image
 # from PIL import Image, ImageDraw, ImageFont
 # import matplotlib.pyplot as plt
+import subprocess
 
 # ####################### Цвета RGB #######################
 black = (0, 0, 0)
@@ -45,7 +46,7 @@ def get_iou(a, b, epsilon=1e-5):
     width = (x2 - x1)
     height = (y2 - y1)
     # handle case where there is NO overlap
-    if (width<0) or (height <0):
+    if (width < 0) or (height < 0):
         return 0.0
     area_overlap = width * height
 
@@ -104,4 +105,20 @@ def batch_iou(a, b, epsilon=1e-5):
     return iou
 
 
-
+# ################### image to telegram ###################
+def send_image_tlg(image, bot_token, chat_id):
+    """
+     Функция отправки изображения в тлг-чат
+    :param image:
+    :param bot_token:
+    :param chat_id:
+    :return:
+    """
+    #
+    image_file = 'tmp.jpg'
+    cv.imwrite(image_file, image)
+    #
+    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
+              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
+    subprocess.call(command.split(' '))
+    return
