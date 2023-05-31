@@ -32,6 +32,7 @@ with urllib.request.urlopen(url_json) as url:
         chat_Id_admin = data[1]['out']['telegram']
         chat_Id = data[0]['out']['telegram']
         print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+
     else:
         print("Настроек по json получить не удалось, присваиваем дефолтные")
         RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
@@ -68,6 +69,7 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
 
 # Классы, которые детектим (если все, то = names)
 names_to_detect = ['person', 'laptop', 'bottle']
+# names_to_detect = names
 #
 classes_list = []
 for idx, name in enumerate(names):
@@ -147,7 +149,7 @@ myThread.start()
 #
 result_show = None  # список объектов для отображения на фрейме
 #
-N_acc = 15     # размер аккумулятора, предиктов
+N_acc = 50     # размер аккумулятора, предиктов
 N_pred = 3     # при скольких предиктах объекта в аккумуляторе показываем объект
 N_coord = 5    # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
