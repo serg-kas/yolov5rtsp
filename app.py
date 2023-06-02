@@ -341,6 +341,20 @@ while True:
     #
     if VIDEO_to_RTSP:
         pass
+        # if frame is not None:
+        #     # cv.imshow(RTSP_URL, frame)
+        #     #
+        #     prev_frame = frame.copy()
+        #     prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
+        # else:
+        #     # cv.imshow(RTSP_URL, prev_frame)
+        #     #
+        # c = cv.waitKey(1)
+        # if c == 27:
+        #     if DEBUG:
+        #         print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
+        #     myThread.stop = True
+        #     break
 
 #
 if DEBUG:

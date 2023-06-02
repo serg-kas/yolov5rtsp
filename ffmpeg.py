@@ -12,6 +12,10 @@ import urllib.request
 import json
 import subprocess
 
+# ffmpeg -re -stream_loop -1 -i 111.mp4 -c copy -f rtsp rtsp://localhost:8554/mystream
+
+
+
 DEBUG = True
 # RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
