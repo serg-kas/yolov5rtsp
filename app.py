@@ -2,56 +2,53 @@ import numpy as np
 import cv2 as cv
 import torch
 import torch.nn as nn
-# import subprocess
-import threading
 import os
+import random
+import threading
 import time
-from time import sleep
-from random import randint
-import urllib.request
 import json
-
+import urllib.request
 #
 import utils_small as u
 
-#
-DEBUG = False        # флаг вывода отладочных сообщений
-#
-SHOW_VIDEO = True    # показывать видео
-def_W = 800          # целевая ширина фрейма для обработки и показа изображения
-
+# Флаг вывода отладочных сообщений
+DEBUG = False
 
 # #############################################################################
-url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
-# data = None
-with urllib.request.urlopen(url_json) as url:
-    data = json.load(url)
-    #
-    if data is not None:
-        RTSP_URL = data[0]['in']['url']
-        chat_Id_admin = data[1]['out']['telegram']
-        chat_Id = data[0]['out']['telegram']
-        print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+def_W = 800            # целевая ширина фрейма для обработки и показа изображения
+SHOW_VIDEO = True      # показывать видео на экране
+VIDEO_to_RTSP = False  # транслировать видео на rtsp сервер
 
-    else:
-        print("Настроек по json получить не удалось, присваиваем дефолтные")
-        RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
-        # RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
-        chat_Id_admin = "47989888"
-        chat_Id = "1443607497"
-        print("Дефолтные настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
-
-#
+# #############################################################################
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
 # url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=attention"
 # url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=attention"
 
+# #############################################################################
+url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
 
+try:
+    url = urllib.request.urlopen(url_json)
+    data = json.load(url)
+    RTSP_URL = data[0]['in']['url']
+    chat_Id_admin = data[1]['out']['telegram']
+    chat_Id = data[0]['out']['telegram']
+    print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+
+except urllib.error.URLError as e:
+    print("Ошибка получения параметров из json: {}".format(e.reason))
+    RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
+    chat_Id_admin = "47989888"
+    chat_Id = "1443607497"
+    print("Дефолтные настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
+
+
+# TODO: переназначаем для тестов
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 
 # #############################################################################
-# Случайные цвета по числу треков
-colors = [(randint(0, 255), randint(0, 255), randint(0, 255)) for x in range(1000)]
+# Случайные цвета для треков
+colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for x in range(1000)]
 
 # Начальный номер трека
 track = 1
@@ -112,7 +109,7 @@ class MyThread (threading.Thread):
             if self.image is None:
                 if DEBUG:
                     print("Нейронка свободна, но фрейма для предикта нет")
-                sleep(0.01)
+                time.sleep(0.01)
                 continue
             else:
                 # получаем предикт
@@ -150,7 +147,7 @@ myThread.start()
 result_show = None  # список объектов для отображения на фрейме
 #
 N_acc = 50     # размер аккумулятора, предиктов
-N_pred = 3     # при скольких предиктах объекта в аккумуляторе показываем объект
+N_pred = 2     # при скольких предиктах объекта в аккумуляторе показываем объект
 N_coord = 5    # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
 #
@@ -341,6 +338,10 @@ while True:
                 print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
             myThread.stop = True
             break
+    #
+    if VIDEO_to_RTSP:
+        pass
+
 #
 if DEBUG:
     print("Отключаем capture, закрываем все окна")
