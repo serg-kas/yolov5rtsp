@@ -170,7 +170,7 @@ while True:
         if DEBUG:
             print("Получен новый фрейм")
         #
-        # frame = frame.copy()
+        frame = frame[:, :, ::-1].copy()
         #
         h, w = frame.shape[:2]
         W = def_W
@@ -329,6 +329,17 @@ while True:
                     print("Отправляем изображение в тлг")
                 # u.send_image_tlg(frame, bot_Token, chat_Id_admin)
                 u.send_image_tlg(frame, bot_Token, chat_Id)
+    #
+    if VIDEO_to_RTSP:
+        if frame is not None:
+            # cv.imshow(RTSP_URL, frame)
+            ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
+            #
+            prev_frame = frame.copy()
+            prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
+        else:
+            # cv.imshow(RTSP_URL, prev_frame)
+            ffmpeg_process.stdin.write(prev_frame.astype(np.uint8).tobytes())
 
     #
     if SHOW_VIDEO:
@@ -346,19 +357,6 @@ while True:
                 print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
             myThread.stop = True
             break
-    #
-    if VIDEO_to_RTSP:
-        if frame is not None:
-            # cv.imshow(RTSP_URL, frame)
-            ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
-            #
-            prev_frame = frame.copy()
-            prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
-        else:
-            # cv.imshow(RTSP_URL, prev_frame)
-            ffmpeg_process.stdin.write(prev_frame.astype(np.uint8).tobytes())
-            #
-
 #
 if DEBUG:
     print("Отключаем capture, закрываем все окна")
