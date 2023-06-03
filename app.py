@@ -47,7 +47,7 @@ except urllib.error.URLError as e:
     print("Дефолтные настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
 
 
-# TODO: переназначаем для тестов
+# TODO: переназначаем для тестов на дом.камеру
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 
 # #############################################################################
