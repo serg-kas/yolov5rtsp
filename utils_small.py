@@ -7,6 +7,7 @@ import cv2 as cv
 # from PIL import Image, ImageDraw, ImageFont
 # import matplotlib.pyplot as plt
 import subprocess
+import time
 
 # ####################### Цвета RGB #######################
 black = (0, 0, 0)
@@ -120,5 +121,15 @@ def send_image_tlg(image, bot_token, chat_id):
     #
     command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
               '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
-    subprocess.call(command.split(' '))
+    #
+    p = subprocess.Popen(command.split(' '))
+    while p.poll() is None:
+        time.sleep(0.3)
     return
+
+
+# ################### rstp server ###################
+def start_rstp_server():
+    command = []
+
+    return True

@@ -26,7 +26,6 @@ bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
 
 # #############################################################################
 url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
-
 try:
     url = urllib.request.urlopen(url_json)
     data = json.load(url)
@@ -94,7 +93,7 @@ class MyThread (threading.Thread):
         self.image = None           # сюда подавать изображение для предикта
         self.stop = False           # остановить поток
         #
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5m', pretrained=True)
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5l', pretrained=True)
         self.model.conf = 0.25  # confidence threshold (0-1)
         self.model.iou = 0.45   # NMS IoU threshold (0-1)
         self.model.classes = classes_list
@@ -314,11 +313,15 @@ while True:
                 start = time.time()
 
                 # Сообщение в телегу
+                # if DEBUG:
+                #     print("Отправляем сообщение в тлг")
                 # with urllib.request.urlopen(url_tg) as response:
                 #     html = response.read()
                 #     print(html)
 
                 # Изображение в телегу
+                if DEBUG:
+                    print("Отправляем изображение в тлг")
                 # u.send_image_tlg(frame, bot_Token, chat_Id_admin)
                 u.send_image_tlg(frame, bot_Token, chat_Id)
 
@@ -339,8 +342,8 @@ while True:
             myThread.stop = True
             break
     #
-    if VIDEO_to_RTSP:
-        pass
+    # if VIDEO_to_RTSP:
+    #     pass
         # if frame is not None:
         #     # cv.imshow(RTSP_URL, frame)
         #     #
