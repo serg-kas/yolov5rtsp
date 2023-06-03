@@ -139,4 +139,4 @@ def open_ffmpeg_stream_process(command=None):
                    "-f rtsp rtsp://localhost:8554/mystream").split(' ')
 
     return subprocess.Popen(command, stdin=subprocess.PIPE)
-    # return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
