@@ -57,7 +57,7 @@ def get_iou(a, b, epsilon=1e-5):
     area_combined = area_a + area_b - area_overlap
 
     # RATIO OF AREA OF OVERLAP OVER COMBINED AREA
-    iou = area_overlap / (area_combined+epsilon)
+    iou = area_overlap / (area_combined + epsilon)
     return iou
 
 
@@ -129,7 +129,13 @@ def send_image_tlg(image, bot_token, chat_id):
 
 
 # ################### rstp server ###################
-def start_rstp_server():
-    command = []
-
-    return True
+def open_ffmpeg_stream_process(command=None):
+    """
+    :return: запущенный процесс
+    """
+    if command is None:
+        command = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
+                   "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p "
+                   "-f rtsp rtsp://localhost:8554/mystream").split(' ')
+    # return subprocess.Popen(command, stdin=subprocess.PIPE)
+    return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

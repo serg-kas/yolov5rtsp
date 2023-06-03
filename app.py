@@ -15,14 +15,19 @@ import utils_small as u
 DEBUG = False
 
 # #############################################################################
-def_W = 800            # целевая ширина фрейма для обработки и показа изображения
-SHOW_VIDEO = True      # показывать видео на экране
-VIDEO_to_RTSP = False  # транслировать видео на rtsp сервер
+def_W = 800           # целевая ширина фрейма для обработки и показа изображения
+SHOW_VIDEO = False    # показывать видео на экране
+VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
+#
+if VIDEO_to_RTSP:
+    # RSTP сервер mediamtx должен быть предварительно запущен
+    # rtsp://localhost:8554/mystream
+    ffmpeg_process = u.open_ffmpeg_stream_process()
 
 # #############################################################################
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
-# url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=attention"
-# url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=attention"
+# url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=TEXT!"
+# url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=TEXT!"
 
 # #############################################################################
 url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
@@ -342,27 +347,36 @@ while True:
             myThread.stop = True
             break
     #
-    # if VIDEO_to_RTSP:
-    #     pass
-        # if frame is not None:
-        #     # cv.imshow(RTSP_URL, frame)
-        #     #
-        #     prev_frame = frame.copy()
-        #     prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
-        # else:
-        #     # cv.imshow(RTSP_URL, prev_frame)
-        #     #
-        # c = cv.waitKey(1)
-        # if c == 27:
-        #     if DEBUG:
-        #         print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
-        #     myThread.stop = True
-        #     break
+    if VIDEO_to_RTSP:
+        if frame is not None:
+            # cv.imshow(RTSP_URL, frame)
+            ffmpeg_process.stdin.write(frame.tobytes())
+            # ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
+            # output = ffmpeg_process.communicate(input=frame.tobytes())[0]
+            #
+            prev_frame = frame.copy()
+            prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
+        else:
+            # cv.imshow(RTSP_URL, prev_frame)
+            ffmpeg_process.stdin.write(frame.tobytes())
+            # ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
+            # output = ffmpeg_process.communicate(input=prev_frame.tobytes())[0]
+            #
+        c = cv.waitKey(1)
+        if c == 27:
+            if DEBUG:
+                print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
+            myThread.stop = True
+            break
 
 #
 if DEBUG:
     print("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
+
+if VIDEO_to_RTSP:
+    ffmpeg_process.stdin.close()
+    ffmpeg_process.wait()
 
 
