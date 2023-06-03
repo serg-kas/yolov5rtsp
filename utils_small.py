@@ -135,7 +135,8 @@ def open_ffmpeg_stream_process(command=None):
     """
     if command is None:
         command = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
-                   "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p "
+                   "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p -c:v libx264 "
                    "-f rtsp rtsp://localhost:8554/mystream").split(' ')
-    # return subprocess.Popen(command, stdin=subprocess.PIPE)
-    return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    return subprocess.Popen(command, stdin=subprocess.PIPE)
+    # return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

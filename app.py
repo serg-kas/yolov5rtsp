@@ -17,8 +17,8 @@ DEBUG = False
 # #############################################################################
 def_W = 800           # целевая ширина фрейма для обработки и показа изображения
 SHOW_VIDEO = False    # показывать видео на экране
-VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
 #
+VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
 if VIDEO_to_RTSP:
     # RSTP сервер mediamtx должен быть предварительно запущен
     # rtsp://localhost:8554/mystream
@@ -350,24 +350,14 @@ while True:
     if VIDEO_to_RTSP:
         if frame is not None:
             # cv.imshow(RTSP_URL, frame)
-            ffmpeg_process.stdin.write(frame.tobytes())
-            # ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
-            # output = ffmpeg_process.communicate(input=frame.tobytes())[0]
+            ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
             #
             prev_frame = frame.copy()
             prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
         else:
             # cv.imshow(RTSP_URL, prev_frame)
-            ffmpeg_process.stdin.write(frame.tobytes())
-            # ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
-            # output = ffmpeg_process.communicate(input=prev_frame.tobytes())[0]
+            ffmpeg_process.stdin.write(prev_frame.astype(np.uint8).tobytes())
             #
-        c = cv.waitKey(1)
-        if c == 27:
-            if DEBUG:
-                print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
-            myThread.stop = True
-            break
 
 #
 if DEBUG:
