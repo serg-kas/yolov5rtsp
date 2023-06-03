@@ -16,9 +16,9 @@ DEBUG = False
 
 # #############################################################################
 def_W = 800           # целевая ширина фрейма для обработки и показа изображения
-SHOW_VIDEO = False    # показывать видео на экране
+SHOW_VIDEO = True    # показывать видео на экране
 #
-VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
+VIDEO_to_RTSP = False  # транслировать видео на rtsp сервер
 if VIDEO_to_RTSP:
     # RSTP сервер mediamtx должен быть предварительно запущен
     # rtsp://localhost:8554/mystream
@@ -158,7 +158,9 @@ assert N_pred <= N_acc and N_coord < N_acc
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
 acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек -1
 #
-prev_frame = None    # предыдущий фрейм если не готов новый
+# Предыдущий фрейм если не готов новый
+prev_frame_rtsp = None
+prev_frame = None
 #
 start = time.time()  # Начало засечки времени
 
@@ -169,8 +171,6 @@ while True:
     if ret:
         if DEBUG:
             print("Получен новый фрейм")
-        #
-        frame = frame[:, :, ::-1].copy()
         #
         h, w = frame.shape[:2]
         W = def_W
@@ -332,14 +332,14 @@ while True:
     #
     if VIDEO_to_RTSP:
         if frame is not None:
-            # cv.imshow(RTSP_URL, frame)
-            ffmpeg_process.stdin.write(frame.astype(np.uint8).tobytes())
             #
-            prev_frame = frame.copy()
-            prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
+            frame_rtsp = frame[:, :, ::-1]
+            ffmpeg_process.stdin.write(frame_rtsp.astype(np.uint8).tobytes())
+            #
+            prev_frame_rtsp = frame_rtsp.copy()
+            prev_frame_rtsp = cv.circle(prev_frame_rtsp, (30, 30), 10, u.red, -1)
         else:
-            # cv.imshow(RTSP_URL, prev_frame)
-            ffmpeg_process.stdin.write(prev_frame.astype(np.uint8).tobytes())
+            ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
 
     #
     if SHOW_VIDEO:
