@@ -364,7 +364,7 @@ if DEBUG:
     print("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
-
+#
 if VIDEO_to_RTSP:
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
