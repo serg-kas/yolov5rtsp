@@ -1,5 +1,5 @@
-#FROM ubuntu:latest
-FROM python:3.10.5-slim-buster
+FROM ubuntu:latest
+#FROM python:3.10.5-slim-buster
 
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 RUN apt-get install libfdk-aac-dev libass-dev libopus-dev libtheora-dev libvorbis-dev libvpx-dev libssl-dev -y
