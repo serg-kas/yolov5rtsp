@@ -6,10 +6,12 @@ import cv2 as cv
 # from PIL import Image
 # from PIL import Image, ImageDraw, ImageFont
 # import matplotlib.pyplot as plt
+# import os
 import subprocess
 import time
 
-# ####################### Цвета RGB #######################
+
+# ################################ Цвета RGB ##################################
 black = (0, 0, 0)
 blue = (255, 0, 0)
 green = (0, 255, 0)
@@ -20,7 +22,7 @@ turquoise = (255, 255, 0)
 white = (255, 255, 255)
 
 
-# ########################## IoU ##########################
+# ################################### IoU #####################################
 def get_iou(a, b, epsilon=1e-5):
     """ Given two boxes `a` and `b` defined as a list of four numbers:
             [x1,y1,x2,y2]
@@ -106,7 +108,7 @@ def batch_iou(a, b, epsilon=1e-5):
     return iou
 
 
-# ################### image to telegram ###################
+# ########################### send image to telegram ##########################
 def send_image_tlg(image, bot_token, chat_id):
     """
      Функция отправки изображения в тлг-чат
@@ -128,7 +130,7 @@ def send_image_tlg(image, bot_token, chat_id):
     return
 
 
-# ################### rstp server ###################
+# ###################### send image to rstp server ############################
 def open_ffmpeg_stream_process(command=None):
     """
     :return: запущенный процесс
@@ -141,3 +143,21 @@ def open_ffmpeg_stream_process(command=None):
 
     return subprocess.Popen(command, stdin=subprocess.PIPE)
 
+
+# ############################ video capture ##################################
+def get_cap(rtsp_url, max_attempts=3):
+    """
+    Создает и возвращает источник видео
+    :param rtsp_url:
+    :param max_attempts: максимальное количество попыток соединиться
+    :return: True, cap или False, None
+    """
+
+    attempt_count = 0
+    while attempt_count < max_attempts:
+        cap = cv.VideoCapture(rtsp_url)
+        if cap.isOpened():
+            return True, cap
+        #
+        attempt_count += 1
+    return False, None

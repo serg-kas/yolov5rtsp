@@ -4,6 +4,7 @@ FROM ubuntu:latest
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 RUN apt-get install libfdk-aac-dev libass-dev libopus-dev libtheora-dev libvorbis-dev libvpx-dev libssl-dev -y
 RUN apt-get install python3-pip -y
+RUN apt-get install curl -y
 
 WORKDIR /app
 

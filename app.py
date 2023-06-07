@@ -12,7 +12,7 @@ import urllib.request
 import utils_small as u
 
 # Флаг вывода отладочных сообщений
-DEBUG = True
+DEBUG = False
 
 # #############################################################################
 def_W = 800           # целевая ширина фрейма для обработки и показа изображения
@@ -21,7 +21,7 @@ SHOW_VIDEO = False    # показывать видео на экране
 VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
 if VIDEO_to_RTSP:
     # RSTP сервер mediamtx должен быть предварительно запущен
-    # rtsp://localhost:8554/mystream
+    # rtsp://<IP>:8554/mystream
     ffmpeg_process = u.open_ffmpeg_stream_process()
 
 # #############################################################################
@@ -132,20 +132,11 @@ class MyThread (threading.Thread):
 
 # #############################################################################
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
-# TODO оформить в функцию, потом сделать реконнект
-attempt = 0
-while attempt < 3:
-    cap = cv.VideoCapture(RTSP_URL)
-    if cap.isOpened():
-        if DEBUG:
-            print("Подключили capture: {}".format(RTSP_URL))
-        break
-    attempt += 1
-if not cap.isOpened():
-    # raise IOError("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempt))
-    print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempt))
+attempts = 3
+_, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
+if cap is None:
+    print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempts))
     exit(1)
-
 
 # #############################################################################
 myThread = MyThread()
@@ -166,9 +157,11 @@ prev_frame_rtsp = None
 prev_frame = None
 #
 start = time.time()  # Начало засечки времени
+#
+cap_errors_reconnect = 10  # после скольки ошибок чтения переподключить источник
+cap_error_count = 0
 
 # #############################################################################
-cap_error_count = 0
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
@@ -193,10 +186,16 @@ while True:
     else:
         cap_error_count += 1
         if DEBUG:
-            print("Нет нового фрейма от источника, раз: {}".format(cap_error_count))
-
-
-
+            print("Нет нового фрейма от источника, cap_error_count: {}".format(cap_error_count))
+        if cap_error_count > cap_errors_reconnect:
+            del cap
+            _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
+            if cap is None:
+                print("Cannot reconnect cam: {} after {} attempts".format(RTSP_URL, attempts))
+                exit(1)
+            # if DEBUG:
+            #     print("Переподключили источник capture")
+            print("Переподключили источник capture")
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
