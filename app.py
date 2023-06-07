@@ -189,7 +189,7 @@ while True:
                 print("Нейронка занята, фрейм не берет")
     else:
         if DEBUG:
-            print("Нет нового фрейма")
+            print("Нет нового фрейма от источника")
 
     #
     if myThread.result is not None:
