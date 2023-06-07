@@ -132,6 +132,7 @@ class MyThread (threading.Thread):
 
 # #############################################################################
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
+# TODO оформить в функцию, потом сделать реконнект
 attempt = 0
 while attempt < 3:
     cap = cv.VideoCapture(RTSP_URL)
@@ -167,10 +168,12 @@ prev_frame = None
 start = time.time()  # Начало засечки времени
 
 # #############################################################################
+cap_error_count = 0
 while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
+        cap_error_count = 0
         if DEBUG:
             print("Получен новый фрейм от источника")
         #
@@ -188,8 +191,11 @@ while True:
             if DEBUG:
                 print("Нейронка занята, фрейм не берет")
     else:
+        cap_error_count += 1
         if DEBUG:
-            print("Нет нового фрейма от источника")
+            print("Нет нового фрейма от источника, раз: {}".format(cap_error_count))
+
+
 
     #
     if myThread.result is not None:
