@@ -112,10 +112,12 @@ class MyThread (threading.Thread):
             # подождать если изображения нет
             if self.image is None:
                 if DEBUG:
-                    print("Нейронка свободна, но фрейма для предикта нет")
+                    print("MyThread: Нейронка свободна, но фрейма для предикта нет")
                 time.sleep(0.01)
                 continue
             else:
+                if DEBUG:
+                    print("MyThread: Есть фрейм, получаем предикт")
                 # получаем предикт
                 results = self.model([self.image]).xyxy[0]
                 # формируем результаты в массив numpy
@@ -170,7 +172,7 @@ while True:
     ret, frame = cap.read()
     if ret:
         if DEBUG:
-            print("Получен новый фрейм")
+            print("Получен новый фрейм от источника")
         #
         h, w = frame.shape[:2]
         W = def_W
@@ -212,13 +214,13 @@ while True:
                 if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.40:
                     # print(u.get_iou(new_obj_coord, obj_coord))
                     if DEBUG:
-                        print("Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
+                        print("  Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
                     new_result_np[i, 6] = obj_track
                     obj_recognized = True
                     break
                 elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.90:
                     if DEBUG:
-                        print("Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
+                        print("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
                                                                                                   names[new_obj],
                                                                                                   obj_track))
                     new_result_np[i, 6] = obj_track
@@ -228,7 +230,7 @@ while True:
                 continue
             else:
                 if DEBUG:
-                    print("Объекту {} присвоен новый трек {}".format(names[new_obj], track))
+                    print("  Объекту {} присвоен новый трек {}".format(names[new_obj], track))
                 new_result_np[i, 6] = track
                 track += 1 if track < 1000 else 0
         #
@@ -332,6 +334,8 @@ while True:
     #
     if VIDEO_to_RTSP:
         if frame is not None:
+            if DEBUG:
+                print("Посылаем фрейм на rtsp сервер")
             #
             frame_rtsp = frame[:, :, ::-1]
             ffmpeg_process.stdin.write(frame_rtsp.astype(np.uint8).tobytes())
@@ -339,16 +343,23 @@ while True:
             prev_frame_rtsp = frame_rtsp.copy()
             prev_frame_rtsp = cv.circle(prev_frame_rtsp, (30, 30), 10, u.red, -1)
         else:
+            if DEBUG:
+                print("Фрейм == None. Посылаем предыдущий фрейм на rtsp сервер")
             ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
 
     #
     if SHOW_VIDEO:
         if frame is not None:
+            if DEBUG:
+                print("Выводим фрейм на экран")
+            #
             cv.imshow(RTSP_URL, frame)
             #
             prev_frame = frame.copy()
             prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
         else:
+            if DEBUG:
+                print("Фрейм == None. Выводим предыдущий фрейм на экран")
             cv.imshow(RTSP_URL, prev_frame)
             #
         c = cv.waitKey(1)
