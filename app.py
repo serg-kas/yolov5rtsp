@@ -32,7 +32,6 @@ try:
     url = urllib.request.urlopen(url_json)
     data = json.load(url)
     RTSP_URL = data[0]['in']['url']
-    # TODO: RTSP_server = data[1]['out']['???']
     chat_Id_admin = data[1]['out']['telegram']
     chat_Id = data[0]['out']['telegram']
     print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
