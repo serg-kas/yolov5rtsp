@@ -16,13 +16,10 @@ DEBUG = False
 
 # #############################################################################
 def_W = 800           # целевая ширина фрейма для обработки и показа изображения
+#
 SHOW_VIDEO = False    # показывать видео на экране
 #
 VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
-if VIDEO_to_RTSP:
-    # RSTP сервер mediamtx должен быть предварительно запущен
-    # rtsp://<IP>:8554/mystream
-    ffmpeg_process = u.open_ffmpeg_stream_process()
 
 # #############################################################################
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
@@ -35,6 +32,7 @@ try:
     url = urllib.request.urlopen(url_json)
     data = json.load(url)
     RTSP_URL = data[0]['in']['url']
+    # TODO: RTSP_server = data[1]['out']['???']
     chat_Id_admin = data[1]['out']['telegram']
     chat_Id = data[0]['out']['telegram']
     print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
@@ -49,6 +47,18 @@ except urllib.error.URLError as e:
 
 # TODO: переназначаем для тестов на дом.камеру
 RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+# RTSP_server = 'rtsp://localhost:8554/mystream'
+RTSP_server = 'rtsp://192.168.5.151:8554/mystream'
+
+# #############################################################################
+if VIDEO_to_RTSP:
+    # RSTP сервер mediamtx должен быть предварительно запущен
+    # rtsp://<IP>:8554/mystream
+    command_ffmpeg = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
+                      "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p -c:v libx264 "
+                      "-f rtsp {}").format(RTSP_server)
+
+    ffmpeg_process = u.open_ffmpeg_stream_process(command=command_ffmpeg.split(' '))
 
 # #############################################################################
 # Случайные цвета для треков
@@ -158,7 +168,8 @@ prev_frame = None
 #
 start = time.time()  # Начало засечки времени
 #
-cap_errors_reconnect = 10  # после скольки ошибок чтения переподключить источник
+# После скольки ошибок чтения переподключить источник
+cap_errors_reconnect = 5
 cap_error_count = 0
 
 # #############################################################################
@@ -166,7 +177,7 @@ while True:
     # получаем новый фрейм
     ret, frame = cap.read()
     if ret:
-        cap_error_count = 0
+        cap_error_count = 0  # обнуляем счетчик ошибок при получении изображения
         if DEBUG:
             print("Получен новый фрейм от источника")
         #
@@ -184,7 +195,7 @@ while True:
             if DEBUG:
                 print("Нейронка занята, фрейм не берет")
     else:
-        cap_error_count += 1
+        cap_error_count += 1  # счетчик ошибок при получении изображения
         if DEBUG:
             print("Нет нового фрейма от источника, cap_error_count: {}".format(cap_error_count))
         if cap_error_count > cap_errors_reconnect:
@@ -193,8 +204,7 @@ while True:
             if cap is None:
                 print("Cannot reconnect cam: {} after {} attempts".format(RTSP_URL, attempts))
                 exit(1)
-            # if DEBUG:
-            #     print("Переподключили источник capture")
+        if DEBUG:
             print("Переподключили источник capture")
     #
     if myThread.result is not None:
@@ -349,7 +359,7 @@ while True:
             prev_frame_rtsp = cv.circle(prev_frame_rtsp, (30, 30), 10, u.red, -1)
         else:
             if DEBUG:
-                print("Фрейм == None. Посылаем предыдущий фрейм на rtsp сервер")
+                print("Фрейм для отправки на rtsp сервер is None. Посылаем предыдущий фрейм.")
             ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
 
     #
@@ -364,7 +374,7 @@ while True:
             prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
         else:
             if DEBUG:
-                print("Фрейм == None. Выводим предыдущий фрейм на экран")
+                print("Фрейм для вывода на экран is None. Выводим предыдущий фрейм.")
             cv.imshow(RTSP_URL, prev_frame)
             #
         c = cv.waitKey(1)
