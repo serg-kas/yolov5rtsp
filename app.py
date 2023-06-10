@@ -19,7 +19,7 @@ def_W = 800           # целевая ширина фрейма для обра
 #
 SHOW_VIDEO = False    # показывать видео на экране
 #
-VIDEO_to_RTSP = True  # транслировать видео на rtsp сервер
+VIDEO_to_RTSP = False  # транслировать видео на rtsp сервер
 
 # #############################################################################
 bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
@@ -45,9 +45,9 @@ except urllib.error.URLError as e:
 
 
 # TODO: переназначаем для тестов на дом.камеру
-RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
+# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
 # RTSP_server = 'rtsp://localhost:8554/mystream'
-RTSP_server = 'rtsp://192.168.5.151:8554/mystream'
+RTSP_server = 'rtsp://192.168.5.151:8554/mystream'  # для запуска из докера
 
 # #############################################################################
 if VIDEO_to_RTSP:
