@@ -6,8 +6,9 @@ import os
 import random
 import threading
 import time
-import json
+# import json
 import urllib.request
+from urllib.parse import quote
 #
 import utils_small as u
 
@@ -16,33 +17,36 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Флаг вывода отладочных сообщений
-DEBUG = os.getenv('DEBUG') if os.getenv('DEBUG') is not None else False
+DEBUG = bool(os.getenv('DEBUG')) if os.getenv('DEBUG') is not None else False
 
 # Показывать видео на экране
-SHOW_VIDEO = os.getenv('SHOW_VIDEO') if os.getenv('SHOW_VIDEO') is not None else False
+SHOW_VIDEO = bool(os.getenv('SHOW_VIDEO')) if os.getenv('SHOW_VIDEO') is not None else False
 
 # Транслировать видео на rtsp сервер
-VIDEO_to_RTSP = os.getenv('VIDEO_to_RTSP') if os.getenv('VIDEO_to_RTSP') is not None else False
+VIDEO_to_RTSP = bool(os.getenv('VIDEO_to_RTSP')) if os.getenv('VIDEO_to_RTSP') is not None else False
 
 # Целевая ширина фрейма для обработки и показа изображения
-def_W = os.getenv('def_W') if os.getenv('def_W') is not None else 800
+def_W = int(os.getenv('def_W')) if os.getenv('def_W') is not None else 800
 
 # Телеграм
 bot_Token = os.getenv('bot_Token')
 chat_Id = os.getenv('chat_Id')
 url_tg = os.getenv('url_tg')
-assert (bot_Token and chat_Id) is not None, "bot_Token и chat_Id - обязательные параметры"
+if (bot_Token or chat_Id) is None:
+    print("bot_Token и chat_Id - обязательные параметры")
+    exit(1)
 
 # RTSP для получения и трансляции видео
 RTSP_URL = os.getenv('RTSP_URL')
 RTSP_server = os.getenv('RTSP_server')
-print(RTSP_URL, RTSP_server, VIDEO_to_RTSP)
+if VIDEO_to_RTSP and RTSP_server is None:
+    print("RTSP_server - необходимый параметр для трансляции")
+    exit(1)
 
 # #############################################################################
 # Для трансляции видео должен быть предварительно запущен RTSP сервер
 # rtsp://<IP>:8554/mystream
 if VIDEO_to_RTSP:
-    assert RTSP_server is not None, "Для трансляции обязателен параметр RTSP_server"
     #
     command_ffmpeg = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
                       "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p -c:v libx264 "
@@ -137,6 +141,15 @@ _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
 if cap is None:
     print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempts))
     exit(1)
+else:
+    #
+    url_tg += quote("Камера успешное подключена: {}".format(RTSP_URL))
+    with urllib.request.urlopen(url_tg) as response:
+        html = response.read()
+    #
+    if DEBUG:
+        print("Отправили сообщение в тлг о подключении камеры")
+        print(html)
 
 # #############################################################################
 myThread = MyThread()
@@ -226,8 +239,8 @@ while True:
                 elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.90:
                     if DEBUG:
                         print("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
-                                                                                                  names[new_obj],
-                                                                                                  obj_track))
+                                                                                                    names[new_obj],
+                                                                                                    obj_track))
                     new_result_np[i, 6] = obj_track
                     obj_recognized = True
                     break
@@ -324,17 +337,9 @@ while True:
             if msg_time - start > 20:
                 start = time.time()
 
-                # Сообщение в телегу
-                # if DEBUG:
-                #     print("Отправляем сообщение в тлг")
-                # with urllib.request.urlopen(url_tg) as response:
-                #     html = response.read()
-                #     print(html)
-
                 # Изображение в телегу
                 if DEBUG:
                     print("Отправляем изображение в тлг")
-                # u.send_image_tlg(frame, bot_Token, chat_Id_admin)
                 u.send_image_tlg(frame, bot_Token, chat_Id)
     #
     if VIDEO_to_RTSP:
@@ -382,5 +387,4 @@ cv.destroyAllWindows()
 if VIDEO_to_RTSP:
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
-
 
