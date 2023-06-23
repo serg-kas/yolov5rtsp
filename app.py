@@ -143,7 +143,7 @@ if cap is None:
     exit(1)
 else:
     #
-    url_tg += quote("Камера успешное подключена: {}".format(RTSP_URL))
+    url_tg += quote("Камера успешно подключена: {}".format(RTSP_URL))
     with urllib.request.urlopen(url_tg) as response:
         html = response.read()
     #
