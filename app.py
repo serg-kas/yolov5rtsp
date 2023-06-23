@@ -11,52 +11,43 @@ import urllib.request
 #
 import utils_small as u
 
+# ########################## Получение параметров #############################
+from dotenv import load_dotenv
+load_dotenv()
+
 # Флаг вывода отладочных сообщений
-DEBUG = False
+DEBUG = os.getenv('DEBUG') if os.getenv('DEBUG') is not None else False
+
+# Показывать видео на экране
+SHOW_VIDEO = os.getenv('SHOW_VIDEO') if os.getenv('SHOW_VIDEO') is not None else False
+
+# Транслировать видео на rtsp сервер
+VIDEO_to_RTSP = os.getenv('VIDEO_to_RTSP') if os.getenv('VIDEO_to_RTSP') is not None else False
+
+# Целевая ширина фрейма для обработки и показа изображения
+def_W = os.getenv('def_W') if os.getenv('def_W') is not None else 800
+
+# Телеграм
+bot_Token = os.getenv('bot_Token')
+chat_Id = os.getenv('chat_Id')
+url_tg = os.getenv('url_tg')
+assert (bot_Token and chat_Id) is not None, "bot_Token и chat_Id - обязательные параметры"
+
+# RTSP для получения и трансляции видео
+RTSP_URL = os.getenv('RTSP_URL')
+RTSP_server = os.getenv('RTSP_server')
+print(RTSP_URL, RTSP_server, VIDEO_to_RTSP)
 
 # #############################################################################
-def_W = 800           # целевая ширина фрейма для обработки и показа изображения
-#
-SHOW_VIDEO = False    # показывать видео на экране
-#
-VIDEO_to_RTSP = False  # транслировать видео на rtsp сервер
-
-# #############################################################################
-bot_Token = "6260918240:AAFSXBtd5gHJHdrgbyKoDsJkZYO1E9SSHUs"
-# url_tg_admin = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id_admin + "&text=TEXT!"
-# url_tg = "https://api.telegram.org/bot" + bot_Token + "/sendMessage?chat_id=" + chat_Id + "&text=TEXT!"
-
-# #############################################################################
-url_json = "https://modulemarket.ru/api/22ac5704-dfc3-11ed-b813-000c29be8d8a/getparams?appid=5"
-try:
-    url = urllib.request.urlopen(url_json)
-    data = json.load(url)
-    RTSP_URL = data[0]['in']['url']
-    chat_Id_admin = data[1]['out']['telegram']
-    chat_Id = data[0]['out']['telegram']
-    print("Получены настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
-
-except urllib.error.URLError as e:
-    print("Ошибка получения параметров из json: {}".format(e.reason))
-    RTSP_URL = "rtsp://admin:12345678q@212.45.21.150/cam/realmonitor?channel=1&subtype=1"
-    chat_Id_admin = "47989888"
-    chat_Id = "1443607497"
-    print("Дефолтные настройки {}".format([RTSP_URL, chat_Id_admin, chat_Id]))
-
-
-# TODO: переназначаем для тестов на дом.камеру
-# RTSP_URL = 'rtsp://admin:daH_2019@192.168.5.44:554/cam/realmonitor?channel=13&subtype=0'
-# RTSP_server = 'rtsp://localhost:8554/mystream'
-RTSP_server = 'rtsp://192.168.5.151:8554/mystream'  # для запуска из докера
-
-# #############################################################################
+# Для трансляции видео должен быть предварительно запущен RTSP сервер
+# rtsp://<IP>:8554/mystream
 if VIDEO_to_RTSP:
-    # RSTP сервер mediamtx должен быть предварительно запущен
-    # rtsp://<IP>:8554/mystream
+    assert RTSP_server is not None, "Для трансляции обязателен параметр RTSP_server"
+    #
     command_ffmpeg = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
                       "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p -c:v libx264 "
                       "-f rtsp {}").format(RTSP_server)
-
+    #
     ffmpeg_process = u.open_ffmpeg_stream_process(command=command_ffmpeg.split(' '))
 
 # #############################################################################
