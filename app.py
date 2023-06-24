@@ -73,7 +73,7 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'hair drier', 'toothbrush']
 
 # Классы, которые детектим (если все, то = names)
-names_to_detect = ['person', 'laptop', 'bottle']
+names_to_detect = ['person', 'laptop', 'bottle', 'cell phone']
 # names_to_detect = names
 #
 classes_list = []
@@ -84,7 +84,8 @@ if DEBUG:
     print("Детектируем классы. Индексы: {}".format(classes_list))
 
 # Паттерн (сочетание классов), который ищем
-pattern_names = ['person', 'bottle']
+pattern_names = ['person', 'cell phone']
+# pattern_names = ['person', 'bottle']
 #
 pattern_list = []
 for idx, name in enumerate(names):
