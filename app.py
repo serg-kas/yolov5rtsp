@@ -136,7 +136,7 @@ class MyThread (threading.Thread):
 
 
 # #############################################################################
-os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
+# os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 attempts = 3
 _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
 if cap is None:
