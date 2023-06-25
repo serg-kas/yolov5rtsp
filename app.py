@@ -354,9 +354,10 @@ while True:
             prev_frame_rtsp = frame_rtsp.copy()
             prev_frame_rtsp = cv.circle(prev_frame_rtsp, (30, 30), 10, u.red, -1)
         else:
-            if DEBUG:
-                print("Фрейм для отправки на rtsp сервер is None. Посылаем предыдущий фрейм.")
-            ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
+            if prev_frame is not None:
+                if DEBUG:
+                    print("Фрейм для отправки на rtsp сервер is None. Посылаем предыдущий фрейм.")
+                ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
 
     #
     if SHOW_VIDEO:
