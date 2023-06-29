@@ -338,9 +338,9 @@ while True:
             msg_time = time.time()
             if msg_time - start > 20:
                 start = time.time()
-
                 # Изображение в телегу
-                print("Отправляем изображение в тлг:")
+                if DEBUG:
+                    print("Отправляем изображение в тлг")
                 u.send_image_tlg(frame, bot_Token, chat_Id)
     #
     if VIDEO_to_RTSP:
