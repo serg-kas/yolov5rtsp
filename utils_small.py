@@ -120,8 +120,7 @@ def send_image_tlg(image, bot_token, chat_id):
     #
     image_file = 'tmp.jpg'
     cv.imwrite(image_file, image)
-    #
-    print("Сооьщение в телеграм:")
+    print("Сообщение в телеграм:")
     #
     command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
               '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
