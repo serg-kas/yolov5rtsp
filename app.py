@@ -56,7 +56,7 @@ if VIDEO_to_RTSP:
 
 # #############################################################################
 # Случайные цвета для треков
-colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for x in range(1000)]
+colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for x in range(100)]
 
 # Начальный номер трека
 track = 1
@@ -282,7 +282,8 @@ while True:
             (X1, Y1, X2, Y2), _, class_id, track_id = res
             # print((X1, Y1, X2, Y2), class_id, track_id)
             #
-            COLOR = colors[track_id]
+            color_id = track_id % len(colors)
+            COLOR = colors[color_id]
             #
             frame = cv.rectangle(frame, (X1, Y1), (X2, Y2), COLOR, thickness=2)
             frame = cv.putText(frame, names[class_id], (X1 + 5, Y1 + 10),
