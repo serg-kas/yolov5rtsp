@@ -84,7 +84,7 @@ if DEBUG:
     print("Детектируем классы. Индексы: {}".format(classes_list))
 
 # Паттерн (сочетание классов), который ищем
-pattern_names = ['person', 'chair']
+pattern_names = ['person', 'cell phone']
 # pattern_names = ['person', 'bottle']
 #
 pattern_list = []
