@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 import torch
 import torch.nn as nn
-import os
+# import os
 import random
 import threading
 import time
@@ -10,38 +10,31 @@ import time
 import urllib.request
 from urllib.parse import quote
 #
+import settings as s
 import utils_small as u
 
 # ########################## Получение параметров #############################
-from dotenv import load_dotenv
-load_dotenv()
-
 # Флаг вывода отладочных сообщений
-DEBUG = bool(os.getenv('DEBUG')) if os.getenv('DEBUG') is not None else False
+DEBUG = s.DEBUG
 
 # Показывать видео на экране
-SHOW_VIDEO = bool(os.getenv('SHOW_VIDEO')) if os.getenv('SHOW_VIDEO') is not None else False
+SHOW_VIDEO = s.SHOW_VIDEO
 
 # Транслировать видео на rtsp сервер
-VIDEO_to_RTSP = bool(os.getenv('VIDEO_to_RTSP')) if os.getenv('VIDEO_to_RTSP') is not None else False
+VIDEO_to_RTSP = s.VIDEO_to_RTSP
 
 # Целевая ширина фрейма для обработки и показа изображения
-def_W = int(os.getenv('def_W')) if os.getenv('def_W') is not None else 800
+def_W = s.def_W
 
 # Телеграм
-bot_Token = os.getenv('bot_Token')
-chat_Id = os.getenv('chat_Id')
-url_tg = os.getenv('url_tg')
-if (bot_Token or chat_Id) is None:
-    print("bot_Token и chat_Id - обязательные параметры")
-    exit(1)
+bot_Token = s.bot_Token
+chat_Id = s.chat_Id
+url_tg = s.url_tg
 
 # RTSP для получения и трансляции видео
-RTSP_URL = os.getenv('RTSP_URL')
-RTSP_server = os.getenv('RTSP_server')
-if VIDEO_to_RTSP and RTSP_server is None:
-    print("RTSP_server - необходимый параметр для трансляции")
-    exit(1)
+RTSP_URL = s.RTSP_URL
+RTSP_server = s.RTSP_server
+
 
 # #############################################################################
 # Для трансляции видео должен быть предварительно запущен RTSP сервер
@@ -72,10 +65,11 @@ names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush']
 
-# Классы, которые детектим (если все, то = names)
-names_to_detect = ['person', 'bottle', 'cell phone', 'chair']
+# Классы, которые детектим
+names_to_detect = s.NAMES_TO_DETECT
+# Если детектим всё, то names_to_detect = names
 # names_to_detect = names
-#
+
 classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
@@ -84,8 +78,7 @@ if DEBUG:
     print("Детектируем классы. Индексы: {}".format(classes_list))
 
 # Паттерн (сочетание классов), который ищем
-pattern_names = ['person', 'cell phone']
-# pattern_names = ['person', 'bottle']
+pattern_names = s.PATTERN_NAMES
 #
 pattern_list = []
 for idx, name in enumerate(names):
@@ -389,4 +382,3 @@ cv.destroyAllWindows()
 if VIDEO_to_RTSP:
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
-
