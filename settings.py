@@ -31,12 +31,13 @@ def get_variable_name(variable):
 def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose=False):
     """
     Ищет значение в переменных окружения.
-    Если параметр variable - переменная и есть соответствующее значение в переменных окружения,
-    то возвращает это значение. Если значения нет, то возвращает значение переменной variable.
-    Если variable - имя переменной (строка, а не переменная) и есть соответствующее значение
+    Если параметр variable - это переменная и есть соответствующее ей в переменных окружения,
+    то возвращает это значение. Если значения нет, то возвращает значение переменной variable (чтобы не "портить"
+    значение существующей переменной).
+    Если variable - имя переменной (строка, а не переменная) и есть соответствующее ей значение
     в переменных окружения, то возвращает это значение. Если значения нет, то возвращает default_value
 
-    :param variable: существующая переменная или строка (имя переменной)
+    :param variable: существующая переменная или имя переменной (строка)
     :param default_value: значение по умолчанию
     :param prefix_name: префикс прибавляется к имени переменной
     :param verbose: выводить подробные сообщения
@@ -71,8 +72,7 @@ def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose
                 print("  Оставляем значение переменной без изменения: {}".format(variable))
             return variable
         else:
-            if verbose:
-                print("  Используем значение по умолчанию: {}".format(default_value))
+            print("  Используем значение {} по умолчанию: {}".format(variable, default_value))
             return default_value
 
 
@@ -87,22 +87,25 @@ SHOW_VIDEO = get_value_from_env("SHOW_VIDEO", default_value=False)
 VIDEO_to_RTSP = get_value_from_env("VIDEO_TO_RTSP", default_value=False)
 
 # Целевая ширина фрейма для обработки и показа изображения
-def_W = get_value_from_env("def_w", default_value=800)
+def_W = get_value_from_env("DEF_W", default_value=800)
 
 # Телеграм
-bot_Token = os.getenv('bot_token')
-chat_Id = os.getenv('chat_id')
-url_tg = os.getenv('URL_TG')
-if (bot_Token or chat_Id) is None:
+bot_Token = get_value_from_env("BOT_TOKEN")
+chat_Id = get_value_from_env("CHAT_ID")
+url_tg = get_value_from_env("URL_TG")
+if bot_Token is None or chat_Id is None:
     print("bot_Token и chat_Id - обязательные параметры")
     exit(1)
 
 # RTSP для получения и трансляции видео
-RTSP_URL = os.getenv('RTSP_URL')
-RTSP_server = os.getenv('rtsp_server')
+RTSP_URL = get_value_from_env("RTSP_URL")
+RTSP_server = get_value_from_env("rtsp_server")
 if VIDEO_to_RTSP and RTSP_server is None:
     print("RTSP_server - необходимый параметр для трансляции")
     exit(1)
+
+# Попыток соединиться с источником видео
+ATTEMPTS = get_value_from_env("ATTEMPTS", default_value=3)
 
 # ############### ПАРАМЕТРЫ работы с НС ###################
 # Имена классов, которые детектим.
@@ -111,82 +114,16 @@ NAMES_TO_DETECT = get_value_from_env("NAMES_TO_DETECT", default_value=['person',
 # Паттерн (сочетание классов), который ищем
 PATTERN_NAMES = get_value_from_env("PATTERN_NAMES", default_value=['person', 'cell phone'])
 
+# Confidence и IOU модели
+MODEL_CONF = get_value_from_env("MODEL_CONF", default_value=0.25)
+MODEL_IOU = get_value_from_env("MODEL_IOU", default_value=0.45)
 
+# Параметры обобщения (аккумулирования) предиктов
+N_ACC = get_value_from_env("N_ACC", default_value=50)     # размер аккумулятора, предиктов
+N_PRED = get_value_from_env("N_PRED", default_value=2)    # при скольких предиктах в аккумуляторе показываем объект
+N_COORD = get_value_from_env("N_COORD", default_value=5)  # по скольки последним предиктам усредняем bb (координаты)
 
-# Флаг вывода подробных сообщений в консоль
-VERBOSE = get_value_from_env("VERBOSE", default_value=False)
+# Параметры IOU трекера
+IOU_to_track = get_value_from_env("IOU_TO_TRACK", default_value=0.4)    # порог IOU сохранить трек объекта
+IOU_to_rename = get_value_from_env("IOU_TO_RENAME", default_value=0.9)  # порог IOU переименовать объект
 
-# Папки по умолчанию
-SOURCE_PATH = 'source_files'
-OUT_PATH = 'out_files'
-MODELS_PATH = 'models'
-EMB_PATH = get_value_from_env("EMB_PATH", default_value='data')
-TEMPL_PATH = get_value_from_env("TEMPLATES", default_value='templates')
-
-# Допустимые форматы изображений для загрузки в программу
-ALLOWED_IMAGES = ['.jpg', '.jpeg', '.png']
-# Допустимые форматы файлов для загрузки в программу
-ALLOWED_TYPES = ALLOWED_IMAGES + ['.pdf']
-
-# Ширина консоли, символов
-CONS_COLUMNS = 0  # 0 = попытаться определить автоматически
-
-# ################## ПАРАМЕТРЫ МОДЕЛЕЙ ####################
-# Модель OD Stamp для вызова из opencv
-MODEL_DNN_FILE = 'models/best.onnx'
-FORCE_CUDA = False
-INPUT_HEIGHT = 416
-INPUT_WIDTH = 416
-CONFIDENCE_THRESHOLD = 0.35  # для одиночных печатей можно 0.8 или 0.9
-SCORE_THRESHOLD = 0.2
-NMS_THRESHOLD = 0.45
-
-# Модель CNN классификатор isText для вызова из opencv
-MODEL_DNN_FILE_txt = 'models/cnn_txt.onnx'
-FORCE_CUDA_txt = False
-INPUT_HEIGHT_txt = 55
-INPUT_WIDTH_txt = 1030
-CONFIDENCE_THRESHOLD_txt = 0.80  # 0.70 -> 0.75 -> 0.80
-
-# Модель CNN экстрактора фич для вызова из opencv
-MODEL_DNN_FILE_fe = 'models/vgg16fe.onnx'
-FORCE_CUDA_fe = False
-INPUT_HEIGHT_fe = 224
-INPUT_WIDTH_fe = 224
-# и ее ансамблевая обработка
-N_votes_fe = 10
-CONFIDENCE_THRESHOLD_votes = 0.30
-# Собирать результаты предиктов классификатора в новый датасет
-CNNFE_DATA_COLLECT = True
-CNNFE_DATA_COLLECT_path = 'data_collect'
-CNNFE_DATA_COLLECT_limit = 200  # 0 = не ограничивать количество
-# Параметры режима пересчета эмбеддингов (rebuild_emb)
-FORCE_PREPROCESS_IMG = get_value_from_env("FORCE_PREPROCESS_IMG", default_value=False)
-PREP_SCATTER_ONLY = get_value_from_env("PREP_SCATTER_ONLY", default_value=False)
-FOLDERS_TO_PROCESS = get_value_from_env("FOLDERS_TO_PROCESS", default_value=[])
-
-# Модель CNN_mnist классификатора mnist
-MODEL_DNN_FILE_mnist = 'models/cnn_mnist.onnx'
-FORCE_CUDA_mnist = False
-INPUT_HEIGHT_mnist = 28
-INPUT_WIDTH_mnist = 28
-
-# Модель (reader) EasyOCR
-FORCE_CUDA_easyocr = get_value_from_env("FORCE_CUDA_EASYOCR", default_value=True)
-
-# ################### ПАРАМЕТРЫ pdf2img ###################
-DPI = 150
-# Разрешение DPI==150 дает размеры
-SCAN_MIN_SIZE = 1241
-SCAN_MAX_SIZE = 1755
-
-
-# ####################### Цвета RGB #######################
-black = (0, 0, 0)
-blue = (255, 0, 0)
-green = (0, 255, 0)
-red = (0, 0, 255)
-yellow = (0, 255, 255)
-purple = (255, 0, 255)
-turquoise = (255, 255, 0)
-white = (255, 255, 255)

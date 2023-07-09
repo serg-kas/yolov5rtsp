@@ -97,8 +97,8 @@ class MyThread (threading.Thread):
         self.stop = False           # остановить поток
         #
         self.model = torch.hub.load('ultralytics/yolov5', 'yolov5l', pretrained=True)
-        self.model.conf = 0.25  # confidence threshold (0-1)
-        self.model.iou = 0.45   # NMS IoU threshold (0-1)
+        self.model.conf = s.MODEL_CONF  # confidence threshold (0-1)
+        self.model.iou = s.MODEL_IOU    # NMS IoU threshold (0-1)
         self.model.classes = classes_list
         # HOOK: prevent error 'Upsample' object has no attribute 'recompute_scale_factor'
         for m in self.model.modules():
@@ -130,7 +130,7 @@ class MyThread (threading.Thread):
 
 # #############################################################################
 # os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
-attempts = 3
+attempts = s.ATTEMPTS
 _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
 if cap is None:
     print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempts))
@@ -151,9 +151,9 @@ myThread.start()
 #
 result_show = None  # список объектов для отображения на фрейме
 #
-N_acc = 50     # размер аккумулятора, предиктов
-N_pred = 2     # при скольких предиктах объекта в аккумуляторе показываем объект
-N_coord = 5    # по скольки последним предиктам усредняем bb (координаты)
+N_acc = s.N_ACC      # размер аккумулятора, предиктов
+N_pred = s.N_PRED    # при скольких предиктах объекта в аккумуляторе показываем объект
+N_coord = s.N_COORD  # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
 #
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
@@ -223,14 +223,14 @@ while True:
                 obj_track = int(acc_result_np[k, 6])
                 # print(obj_coord, obj, obj_track)
                 #
-                if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > 0.40:
+                if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > s.IOU_to_track:
                     # print(u.get_iou(new_obj_coord, obj_coord))
                     if DEBUG:
                         print("  Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
                     new_result_np[i, 6] = obj_track
                     obj_recognized = True
                     break
-                elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > 0.90:
+                elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > s.IOU_to_rename:
                     if DEBUG:
                         print("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
                                                                                                     names[new_obj],
