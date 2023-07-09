@@ -1,0 +1,46 @@
+# ###################### Общие параметры ######################
+# Пустая строка "" = False, любая непустая строка " " = True
+APP_DEBUG=""
+APP_SHOW_VIDEO=""
+APP_VIDEO_TO_RTSP=""
+
+# Целевой размер изображения для обработки и вывода на экран (опционально)
+APP_DEF_W=800
+
+# ############## Параметры для связи с Telegram ###############
+APP_BOT_TOKEN=...
+APP_CHAT_ID=...
+APP_URL_TG=https://api.telegram.org/bot${APP_BOT_TOKEN}/sendMessage?chat_id=${APP_CHAT_ID}&text=
+
+# ###### Параметры для получения и трансляции видео ###########
+# Адрес RTSP источника видео
+#APP_RTSP_URL=rtsp://...
+APP_RTSP_URL=rtsp://...
+
+# Адрес RSTP сервера для трансляции
+#APP_RTSP_SERVER=rtsp://localhost:8554/mystream
+APP_RTSP_SERVER=rtsp://192.168.5.151:8554/mystream
+
+# Параметр библиотеки opencv
+#OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;udp
+
+# ################### Параметры работы с НС ###################
+# Классы, которые детектим
+APP_NAMES_TO_DETECT='["person", "bottle", "cell phone", "chair"]'
+# Сочетание классов, которое ищем
+APP_PATTERN_NAMES='["person", "cell phone"]'
+
+# Confidence и IOU модели
+#APP_MODEL_CONF=0.25
+#APP_MODEL_IOU=0.45
+
+# Параметры обобщения (аккумулирования) предиктов
+APP_N_ACC=50
+APP_N_PRED=2
+APP_N_COORD=5
+
+# Параметры IOU трекера
+#APP_IOU_TO_TRACK=0.4
+#APP_IOU_TO_RENAME=0.9
+
+
