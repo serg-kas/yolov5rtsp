@@ -93,7 +93,7 @@ def_W = get_value_from_env("DEF_W", default_value=800)
 # Телеграм
 bot_Token = get_value_from_env("BOT_TOKEN")
 chat_Id = get_value_from_env("CHAT_ID")
-url_tg = get_value_from_env("URL_TG")
+url_tg = get_value_from_env("URL_TG", default_value=f"https://api.telegram.org/bot{bot_Token}/sendMessage?chat_id={chat_Id}&text=")
 if bot_Token is None or chat_Id is None:
     print("bot_Token и chat_Id - обязательные параметры")
     exit(1)
