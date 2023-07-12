@@ -120,9 +120,9 @@ MODEL_CONF = get_value_from_env("MODEL_CONF", default_value=0.25)
 MODEL_IOU = get_value_from_env("MODEL_IOU", default_value=0.45)
 
 # Параметры обобщения (аккумулирования) предиктов
-N_ACC = get_value_from_env("N_ACC", default_value=50)     # размер аккумулятора, предиктов
+N_ACC = get_value_from_env("N_ACC", default_value=10)     # размер аккумулятора, предиктов
 N_PRED = get_value_from_env("N_PRED", default_value=2)    # при скольких предиктах в аккумуляторе показываем объект
-N_COORD = get_value_from_env("N_COORD", default_value=5)  # по скольки последним предиктам усредняем bb (координаты)
+N_COORD = get_value_from_env("N_COORD", default_value=3)  # по скольки последним предиктам усредняем bb (координаты)
 
 # Параметры IOU трекера
 IOU_to_track = get_value_from_env("IOU_TO_TRACK", default_value=0.4)    # порог IOU сохранить трек объекта
