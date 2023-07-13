@@ -1,0 +1,15 @@
+### Docker ignore file
+
+# Project files
+.idea
+.git
+__pycache__
+
+# Images
+*.jpg
+
+#
+.env
+
+
+
