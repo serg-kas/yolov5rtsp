@@ -21,7 +21,7 @@ DEBUG = s.DEBUG
 SHOW_VIDEO = s.SHOW_VIDEO
 
 # Транслировать видео на rtsp сервер
-VIDEO_to_RTSP = s.VIDEO_to_RTSP
+VIDEO_TO_RTSP = s.VIDEO_TO_RTSP
 
 # Целевая ширина фрейма для обработки и показа изображения
 def_W = s.def_W
@@ -33,17 +33,17 @@ url_tg = s.url_tg
 
 # RTSP для получения и трансляции видео
 RTSP_URL = s.RTSP_URL
-RTSP_server = s.RTSP_server
+RTSP_SERVER = s.RTSP_SERVER
 
 
 # #############################################################################
 # Для трансляции видео должен быть предварительно запущен RTSP сервер
 # rtsp://<IP>:8554/mystream
-if VIDEO_to_RTSP:
+if VIDEO_TO_RTSP:
     #
     command_ffmpeg = ("ffmpeg -re -stream_loop -1 -f rawvideo -pix_fmt "
                       "rgb24 -s 800x450 -i pipe:0 -pix_fmt yuv420p -c:v libx264 "
-                      "-f rtsp {}").format(RTSP_server)
+                      "-f rtsp {}").format(RTSP_SERVER)
     #
     ffmpeg_process = u.open_ffmpeg_stream_process(command=command_ffmpeg.split(' '))
 
@@ -336,7 +336,7 @@ while True:
                     print("Отправляем изображение в тлг")
                 u.send_image_tlg(frame, bot_Token, chat_Id)
     #
-    if VIDEO_to_RTSP:
+    if VIDEO_TO_RTSP:
         if frame is not None:
             if DEBUG:
                 print("Посылаем фрейм на rtsp сервер")
@@ -379,6 +379,6 @@ if DEBUG:
 cap.release()
 cv.destroyAllWindows()
 #
-if VIDEO_to_RTSP:
+if VIDEO_TO_RTSP:
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()

@@ -85,7 +85,7 @@ DEBUG = get_value_from_env("DEBUG", default_value=False)
 SHOW_VIDEO = get_value_from_env("SHOW_VIDEO", default_value=False)
 
 # Транслировать видео на rtsp сервер
-VIDEO_to_RTSP = get_value_from_env("VIDEO_TO_RTSP", default_value=False)
+VIDEO_TO_RTSP = get_value_from_env("VIDEO_TO_RTSP", default_value=False)
 
 # Целевая ширина фрейма для обработки и показа изображения
 def_W = get_value_from_env("DEF_W", default_value=800)
@@ -100,8 +100,8 @@ if bot_Token is None or chat_Id is None:
 
 # RTSP для получения и трансляции видео
 RTSP_URL = get_value_from_env("RTSP_URL")
-RTSP_server = get_value_from_env("rtsp_server")
-if VIDEO_to_RTSP and RTSP_server is None:
+RTSP_SERVER = get_value_from_env("RTSP_SERVER")
+if VIDEO_TO_RTSP and RTSP_SERVER is None:
     print("RTSP_server - необходимый параметр для трансляции")
     exit(1)
 
@@ -127,4 +127,3 @@ N_COORD = get_value_from_env("N_COORD", default_value=3)  # по скольки 
 # Параметры IOU трекера
 IOU_to_track = get_value_from_env("IOU_TO_TRACK", default_value=0.4)    # порог IOU сохранить трек объекта
 IOU_to_rename = get_value_from_env("IOU_TO_RENAME", default_value=0.9)  # порог IOU переименовать объект
-
