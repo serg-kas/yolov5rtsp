@@ -1,0 +1,5 @@
+version: "3.8"
+services:
+  yolov5rtsp:
+    build: .
+    env_file: .env
