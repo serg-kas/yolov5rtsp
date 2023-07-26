@@ -11,11 +11,15 @@ import urllib.request
 from urllib.parse import quote
 #
 import settings as s
+import log
 import utils_small as u
 
 # ########################## Получение параметров #############################
 # Флаг вывода отладочных сообщений
 DEBUG = s.DEBUG
+
+logger = log.get_logger(level=log.DEBUG if s.DEBUG else log.INFO)
+logger.info("Logger initialized")
 
 # Показывать видео на экране
 SHOW_VIDEO = s.SHOW_VIDEO
@@ -74,8 +78,8 @@ classes_list = []
 for idx, name in enumerate(names):
     if name in names_to_detect:
         classes_list.append(idx)
-if DEBUG:
-    print("Детектируем классы. Индексы: {}".format(classes_list))
+
+logger.debug("Детектируем классы. Индексы: {}".format(classes_list))
 
 # Паттерн (сочетание классов), который ищем
 pattern_names = s.PATTERN_NAMES
@@ -84,13 +88,14 @@ pattern_list = []
 for idx, name in enumerate(names):
     if name in pattern_names:
         pattern_list.append(idx)
-if DEBUG:
-    print("Распознаем паттерн. Индексы: {}".format(pattern_list))
+
+logger.debug("Распознаем паттерн. Индексы: {}".format(pattern_list))
 
 
 # #############################################################################
 class MyThread (threading.Thread):
     def __init__(self):
+        self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
         threading.Thread.__init__(self)
         self.result = None          # результаты предикта
         self.image = None           # сюда подавать изображение для предикта
@@ -106,16 +111,15 @@ class MyThread (threading.Thread):
                 m.recompute_scale_factor = None
 
     def run(self):
+        self.logger.info("Start loop")
         while not self.stop:
             # подождать если изображения нет
             if self.image is None:
-                if DEBUG:
-                    print("MyThread: Нейронка свободна, но фрейма для предикта нет")
+                self.logger.debug("Нейронка свободна, но фрейма для предикта нет")
                 time.sleep(0.01)
                 continue
             else:
-                if DEBUG:
-                    print("MyThread: Есть фрейм, получаем предикт")
+                self.logger.debug("Есть фрейм, получаем предикт")
                 # получаем предикт
                 results = self.model([self.image]).xyxy[0]
                 # формируем результаты в массив numpy
@@ -126,24 +130,26 @@ class MyThread (threading.Thread):
                 #
                 self.result = result_numpy
                 self.image = None
+        self.logger.info("Stop loop")
 
 
 # #############################################################################
 # os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = "rtsp_transport;udp"
 attempts = s.ATTEMPTS
+logger.info("Connecting to the camera at %s", RTSP_URL)
 _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
 if cap is None:
-    print("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempts))
+    logger.error("Cannot open cam: {} after {} attempts".format(RTSP_URL, attempts))
     exit(1)
 else:
     #
+    logger.info("Camera connected successfully")
     url_tg += quote("Камера успешно подключена: {}".format(RTSP_URL))
     with urllib.request.urlopen(url_tg) as response:
         html = response.read()
     #
-    if DEBUG:
-        print("Отправили сообщение в тлг о подключении камеры")
-        print(html)
+    logger.info("Отправили сообщение в тлг о подключении камеры")
+    logger.debug(html)
 
 # #############################################################################
 myThread = MyThread()
@@ -175,8 +181,7 @@ while True:
     ret, frame = cap.read()
     if ret:
         cap_error_count = 0  # обнуляем счетчик ошибок при получении изображения
-        if DEBUG:
-            print("Получен новый фрейм от источника")
+        logger.debug("Получен новый фрейм от источника")
         #
         h, w = frame.shape[:2]
         W = def_W
@@ -186,30 +191,25 @@ while True:
         # засылаем новый фрейм на предикт
         if myThread.image is None:
             myThread.image = frame[:, :, ::-1].copy()
-            if DEBUG:
-                print("Новый фрейм подан на предикт")
+            logger.debug("Новый фрейм подан на предикт")
         else:
-            if DEBUG:
-                print("Нейронка занята, фрейм не берет")
+            logger.debug("Нейронка занята, фрейм не берет")
     else:
         cap_error_count += 1  # счетчик ошибок при получении изображения
-        if DEBUG:
-            print("Нет нового фрейма от источника, cap_error_count: {}".format(cap_error_count))
+        logger.debug("Нет нового фрейма от источника, cap_error_count: {}".format(cap_error_count))
         if cap_error_count > cap_errors_reconnect:
             del cap
             _, cap = u.get_cap(RTSP_URL, max_attempts=attempts)
             if cap is None:
-                print("Cannot reconnect cam: {} after {} attempts".format(RTSP_URL, attempts))
+                logger.error("Cannot reconnect cam: {} after {} attempts".format(RTSP_URL, attempts))
                 exit(1)
-        if DEBUG:
-            print("Переподключили источник capture")
+        logger.debug("Переподключили источник capture")
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
         new_result_np = myThread.result
         # print(new_result_np.shape, new_result_np)
-        if DEBUG:
-            print("Получен результат numpy, размерности {}".format(myThread.result.shape))
+        logger.debug("Получен результат numpy, размерности {}".format(myThread.result.shape))
         #
         for i in range(new_result_np.shape[0]):
             new_obj_coord = list(new_result_np[i, 0:4].astype(np.int32))
@@ -225,14 +225,12 @@ while True:
                 #
                 if new_obj == obj and u.get_iou(new_obj_coord, obj_coord) > s.IOU_to_track:
                     # print(u.get_iou(new_obj_coord, obj_coord))
-                    if DEBUG:
-                        print("  Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
+                    logger.debug("  Объекту {} присвоен существующий трек {}".format(names[new_obj], obj_track))
                     new_result_np[i, 6] = obj_track
                     obj_recognized = True
                     break
                 elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > s.IOU_to_rename:
-                    if DEBUG:
-                        print("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
+                    logger.debug("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
                                                                                                     names[new_obj],
                                                                                                     obj_track))
                     new_result_np[i, 6] = obj_track
@@ -241,8 +239,7 @@ while True:
             if obj_recognized:
                 continue
             else:
-                if DEBUG:
-                    print("  Объекту {} присвоен новый трек {}".format(names[new_obj], track))
+                logger.debug("  Объекту {} присвоен новый трек {}".format(names[new_obj], track))
                 new_result_np[i, 6] = track
                 track += 1 if track < 1000 else 0
         #
@@ -313,8 +310,7 @@ while True:
             Yc_pat = (Y1_pat + Y2_pat) / 2
             # условие "близости" здесь центры ближе половины экрана
             if (abs(Xc_person - Xc_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
-                if DEBUG:
-                    print("Паттерн найден: {}".format(pattern_names))
+                logger.info("Паттерн найден: {}".format(pattern_names))
                 pattern_txt = "Attention: {}".format(pattern_names)
                 X1_show = min(X1_person, X1_pat)
                 Y1_show = min(Y1_person, Y1_pat)
@@ -332,14 +328,12 @@ while True:
             if msg_time - start > 20:
                 start = time.time()
                 # Изображение в телегу
-                if DEBUG:
-                    print("Отправляем изображение в тлг")
+                logger.info("Отправляем изображение в тлг")
                 u.send_image_tlg(frame, bot_Token, chat_Id)
     #
     if VIDEO_TO_RTSP:
         if frame is not None:
-            if DEBUG:
-                print("Посылаем фрейм на rtsp сервер")
+            logger.debug("Посылаем фрейм на rtsp сервер")
             #
             frame_rtsp = frame[:, :, ::-1]
             ffmpeg_process.stdin.write(frame_rtsp.astype(np.uint8).tobytes())
@@ -348,34 +342,29 @@ while True:
             prev_frame_rtsp = cv.circle(prev_frame_rtsp, (30, 30), 10, u.red, -1)
         else:
             if prev_frame is not None:
-                if DEBUG:
-                    print("Фрейм для отправки на rtsp сервер is None. Посылаем предыдущий фрейм.")
+                logger.debug("Фрейм для отправки на rtsp сервер is None. Посылаем предыдущий фрейм.")
                 ffmpeg_process.stdin.write(prev_frame_rtsp.astype(np.uint8).tobytes())
 
     #
     if SHOW_VIDEO:
         if frame is not None:
-            if DEBUG:
-                print("Выводим фрейм на экран")
+            logger.debug("Выводим фрейм на экран")
             #
             cv.imshow(RTSP_URL, frame)
             #
             prev_frame = frame.copy()
             prev_frame = cv.circle(prev_frame, (30, 30), 10, u.red, -1)
         else:
-            if DEBUG:
-                print("Фрейм для вывода на экран is None. Выводим предыдущий фрейм.")
+            logger.debug("Фрейм для вывода на экран is None. Выводим предыдущий фрейм.")
             cv.imshow(RTSP_URL, prev_frame)
             #
         c = cv.waitKey(1)
         if c == 27:
-            if DEBUG:
-                print("Останавливаем thread и выходим из цикла получения и обработки фреймов")
+            logger.debug("Останавливаем thread и выходим из цикла получения и обработки фреймов")
             myThread.stop = True
             break
 #
-if DEBUG:
-    print("Отключаем capture, закрываем все окна")
+logger.info("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
 #
