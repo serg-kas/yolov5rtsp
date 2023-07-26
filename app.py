@@ -312,7 +312,7 @@ while True:
             Xc_pat = (X1_pat + X2_pat) / 2
             Yc_pat = (Y1_pat + Y2_pat) / 2
             # условие "близости" здесь центры ближе половины экрана
-            if (abs(Xc_person - X1_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
+            if (abs(Xc_person - Xc_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
                 if DEBUG:
                     print("Паттерн найден: {}".format(pattern_names))
                 pattern_txt = "Attention: {}".format(pattern_names)
