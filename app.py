@@ -208,8 +208,9 @@ while True:
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
         new_result_np = myThread.result
+        myThread.result = None
         # print(new_result_np.shape, new_result_np)
-        logger.debug("Получен результат numpy, размерности {}".format(myThread.result.shape))
+        logger.debug("Получен результат numpy, размерности {}".format(new_result_np.shape))
         #
         for i in range(new_result_np.shape[0]):
             new_obj_coord = list(new_result_np[i, 0:4].astype(np.int32))
