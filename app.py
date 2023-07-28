@@ -207,9 +207,8 @@ while True:
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
-        new_result_np = myThread.result
-        # new_result_np = myThread.result.copy()
-        # myThread.result = None
+        new_result_np = myThread.result.copy()
+        myThread.result = None
         # print(new_result_np.shape, new_result_np)
         logger.debug("Получен результат numpy, размерности {}".format(new_result_np.shape))
         #
