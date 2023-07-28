@@ -101,7 +101,7 @@ class MyThread (threading.Thread):
         self.image = None           # сюда подавать изображение для предикта
         self.stop = False           # остановить поток
         #
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5l', pretrained=True)
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5m', pretrained=True)
         self.model.conf = s.MODEL_CONF  # confidence threshold (0-1)
         self.model.iou = s.MODEL_IOU    # NMS IoU threshold (0-1)
         self.model.classes = classes_list
