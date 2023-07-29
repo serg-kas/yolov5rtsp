@@ -98,6 +98,7 @@ class MyThread (threading.Thread):
         self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
         threading.Thread.__init__(self)
         self.result = None          # результаты предикта
+        self.frame = None           # фрейм к результату
         self.image = None           # сюда подавать изображение для предикта
         self.stop = False           # остановить поток
         #
@@ -178,19 +179,20 @@ cap_error_count = 0
 # #############################################################################
 while True:
     # получаем новый фрейм
-    ret, frame = cap.read()
+    ret, new_frame = cap.read()
     if ret:
         cap_error_count = 0  # обнуляем счетчик ошибок при получении изображения
         logger.debug("Получен новый фрейм от источника")
         #
-        h, w = frame.shape[:2]
+        h, w = new_frame.shape[:2]
         W = def_W
         H = int(W / w * h)
-        frame = cv.resize(frame, (W, H), interpolation=cv.INTER_AREA)
+        new_frame = cv.resize(new_frame, (W, H), interpolation=cv.INTER_AREA)
 
         # засылаем новый фрейм на предикт
         if myThread.image is None:
-            myThread.image = frame[:, :, ::-1].copy()
+            myThread.image = new_frame[:, :, ::-1].copy()
+            myThread.frame = new_frame.copy()
             logger.debug("Новый фрейм подан на предикт")
         else:
             logger.debug("Нейронка занята, фрейм не берет")
@@ -207,6 +209,7 @@ while True:
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
+        frame = myThread.frame.copy()
         new_result_np = myThread.result.copy()
         myThread.result = None
         # print(new_result_np.shape, new_result_np)
