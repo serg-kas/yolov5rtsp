@@ -360,8 +360,8 @@ while True:
             if diff_time > 20:
                 start = time.time()
                 # Изображение в телегу
-                logger.info("Отправляем изображение в тлг старой функцией")
-                u.send_image_tlg(frame, bot_Token, chat_Id)
+                # logger.info("Отправляем изображение в тлг старой функцией")
+                # u.send_image_tlg(frame, bot_Token, chat_Id)
 
                 logger.info("Отправляем изображение в тлг")
                 image = cv.imencode('.jpg', frame)
