@@ -8,7 +8,7 @@ import cv2 as cv
 # import matplotlib.pyplot as plt
 # import os
 import subprocess
-# import time
+import time
 
 
 # ################################ Цвета RGB ##################################
@@ -108,26 +108,26 @@ def batch_iou(a, b, epsilon=1e-5):
     return iou
 
 
-# # ########################### send image to telegram ##########################
-# def send_image_tlg(image, bot_token, chat_id):
-#     """
-#      Функция отправки изображения в тлг-чат
-#     :param image:
-#     :param bot_token:
-#     :param chat_id:
-#     :return:
-#     """
-#     #
-#     image_file = 'tmp.jpg'
-#     cv.imwrite(image_file, image)
-#     #
-#     command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
-#               '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
-#     #
-#     p = subprocess.Popen(command.split(' '))
-#     while p.poll() is None:
-#         time.sleep(0.3)
-#     return
+# ########################### send image to telegram ##########################
+def send_image_tlg(image, bot_token, chat_id):
+    """
+     Функция отправки изображения в тлг-чат
+    :param image:
+    :param bot_token:
+    :param chat_id:
+    :return:
+    """
+    #
+    image_file = 'tmp.jpg'
+    cv.imwrite(image_file, image)
+    #
+    command = 'curl -s -X POST https://api.telegram.org/bot' + bot_token + \
+              '/sendPhoto -F chat_id=' + chat_id + " -F photo=@" + image_file
+    #
+    p = subprocess.Popen(command.split(' '))
+    while p.poll() is None:
+        time.sleep(0.3)
+    return
 
 
 # ###################### send image to rstp server ############################
