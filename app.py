@@ -12,6 +12,7 @@ from urllib.parse import quote
 #
 import settings as s
 import log
+import tlg
 import utils_small as u
 
 # ########################## Получение параметров #############################
@@ -34,6 +35,13 @@ def_W = s.def_W
 bot_Token = s.bot_Token
 chat_Id = s.chat_Id
 url_tg = s.url_tg
+
+logger.debug("Initialization Telegram sender")
+tlg_sender = tlg.TlgSender(
+    log_level=log.DEBUG if s.DEBUG else log.INFO,
+    bot_token=s.bot_Token,
+    chat_id=s.chat_Id
+)
 
 # RTSP для получения и трансляции видео
 RTSP_URL = s.RTSP_URL
@@ -145,12 +153,23 @@ if cap is None:
 else:
     #
     logger.info("Camera connected successfully")
-    url_tg += quote("Камера успешно подключена: {}".format(RTSP_URL))
-    with urllib.request.urlopen(url_tg) as response:
-        html = response.read()
-    #
-    logger.info("Отправили сообщение в тлг о подключении камеры")
-    logger.debug(html)
+
+    # Getting frame for sending to Telegram
+    ret, frame = cap.read()
+    image = cv.imencode('.jpg', frame)
+    try:
+        tlg_sender.send(
+            "Камера успешно подключена: {}".format(RTSP_URL),
+            image[1].tobytes()
+        )
+    except tlg.QueueFull as error:
+        logger.error(error)
+    else:
+        logger.info("Отправили сообщение в тлг о подключении камеры")
+
+logger.info("Running Telegram sender")
+# TODO: Почему-то надо запускать, когда в очередь уже что-то добавили (tlg_sender.send).
+tlg_sender.start()
 
 # #############################################################################
 myThread = MyThread()
@@ -344,7 +363,17 @@ while True:
                 start = time.time()
                 # Изображение в телегу
                 logger.info("Отправляем изображение в тлг")
-                u.send_image_tlg(frame, bot_Token, chat_Id)
+                #u.send_image_tlg(frame, bot_Token, chat_Id)
+                image = cv.imencode('.jpg', frame)
+                try:
+                    tlg_sender.send(
+                        "Сработал детектор",
+                        image[1].tobytes()
+                    )
+                except tlg.QueueFull as error:
+                    logger.error(error)
+                else:
+                    logger.info("Image sent")
     #
     if VIDEO_TO_RTSP:
         if frame is not None:
@@ -379,6 +408,8 @@ while True:
             myThread.stop = True
             break
 #
+logger.info("Stopping Telegram sender")
+tlg_sender.stop()
 logger.info("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
