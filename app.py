@@ -98,6 +98,7 @@ class MyThread (threading.Thread):
         self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
         threading.Thread.__init__(self)
         self.result = None          # результаты предикта
+        self.frame = None           # фрейм к результату
         self.image = None           # сюда подавать изображение для предикта
         self.stop = False           # остановить поток
         #
@@ -178,19 +179,20 @@ cap_error_count = 0
 # #############################################################################
 while True:
     # получаем новый фрейм
-    ret, frame = cap.read()
+    ret, new_frame = cap.read()
     if ret:
         cap_error_count = 0  # обнуляем счетчик ошибок при получении изображения
         logger.debug("Получен новый фрейм от источника")
         #
-        h, w = frame.shape[:2]
+        h, w = new_frame.shape[:2]
         W = def_W
         H = int(W / w * h)
-        frame = cv.resize(frame, (W, H), interpolation=cv.INTER_AREA)
+        new_frame = cv.resize(new_frame, (W, H), interpolation=cv.INTER_AREA)
 
         # засылаем новый фрейм на предикт
         if myThread.image is None:
-            myThread.image = frame[:, :, ::-1].copy()
+            myThread.image = new_frame[:, :, ::-1].copy()
+            myThread.frame = new_frame.copy()
             logger.debug("Новый фрейм подан на предикт")
         else:
             logger.debug("Нейронка занята, фрейм не берет")
@@ -207,6 +209,7 @@ while True:
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
+        frame = myThread.frame.copy()
         new_result_np = myThread.result.copy()
         myThread.result = None
         # print(new_result_np.shape, new_result_np)
@@ -293,6 +296,8 @@ while True:
                 continue
             if class_id in pattern_list and class_id != 0:
                 pattern_coord_list.append([X1, Y1, X2, Y2])
+                logger.debug("Pattern coordinates: %d, %d, %d, %d", X1, Y1, X2, Y2)
+        logger.debug("Person coordinates: %d, %d, %d, %d", *person_coords)
         # print(pattern_coord_list)
         pattern_txt = ""
         pattern_show_coord = [-1, -1, -1, -1]
@@ -302,6 +307,7 @@ while True:
             X1_person, Y1_person, X2_person, Y2_person = person_coords
             Xc_person = (X1_person + X2_person) / 2
             Yc_person = (Y1_person + Y2_person) / 2
+            logger.debug("Person center coordinates: %d, %d", Xc_person, Yc_person)
             # координаты паттерна
             X1_pat = np.min(pattern_coord_np[:, 0])
             Y1_pat = np.min(pattern_coord_np[:, 1])
@@ -309,9 +315,14 @@ while True:
             Y2_pat = np.max(pattern_coord_np[:, 3])
             Xc_pat = (X1_pat + X2_pat) / 2
             Yc_pat = (Y1_pat + Y2_pat) / 2
+            logger.debug("Coordinates of the center of combining patterns: %d, %d", Xc_pat, Yc_pat)
             # условие "близости" здесь центры ближе половины экрана
-            # if (abs(Xc_person - Xc_pat) < def_W / 2) and (abs(Yc_person - Yc_pat) < def_W / 2):
-            if (abs(Xc_person - Xc_pat) < def_W) and (abs(Yc_person - Yc_pat) < def_W):
+            X_distance = abs(Xc_person - Xc_pat)
+            logger.debug("Distance between objects along the X axis: %d", X_distance)
+            Y_distance = abs(Yc_person - Yc_pat)
+            logger.debug("Distance between objects along the Y axis: %d", Y_distance)
+            # if (X_distance < def_W / 2) and (Y_distance < def_W / 2):
+            if (X_distance < def_W) and (Y_distance < def_W):
                 logger.info("Паттерн найден: {}".format(pattern_names))
                 pattern_txt = "Attention: {}".format(pattern_names)
                 X1_show = min(X1_person, X1_pat)
@@ -327,7 +338,9 @@ while True:
                                cv.FONT_HERSHEY_SIMPLEX, fontScale=0.6, color=u.red, thickness=2)
             #
             msg_time = time.time()
-            if msg_time - start > 20:
+            diff_time = msg_time - start
+            logger.debug("diff_time: %d", diff_time)
+            if diff_time > 20:
                 start = time.time()
                 # Изображение в телегу
                 logger.info("Отправляем изображение в тлг")
