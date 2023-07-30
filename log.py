@@ -9,6 +9,7 @@ WARNING = logging.WARNING
 ERROR = logging.ERROR
 CRITICAL = logging.CRITICAL
 
+
 def get_logger(name=DEFAULT_LOGGER_NAME, level=INFO, formatter=DEFAULT_LOGGER_FORMATTER):
     logger = logging.getLogger(name)
     logger.setLevel(level)

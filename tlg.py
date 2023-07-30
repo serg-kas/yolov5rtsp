@@ -3,14 +3,15 @@ import aiohttp
 import threading
 import log
 
+
 class QueueFull(asyncio.QueueFull):
     def __str__(self):
         return "The Telegram queue for sending is full"
 
+
 class TlgSender(threading.Thread):
     def __init__(self, log_level, bot_token, chat_id, worker_count=2, queue_size=10):
         super(TlgSender, self).__init__()
-
         self.logger = log.get_logger(name="TlgSender ", level=log_level)
 
         self.queue = asyncio.Queue(maxsize=queue_size)
@@ -28,7 +29,7 @@ class TlgSender(threading.Thread):
 
     def stop(self):
         for worker in self.workers:
-            self.debug(f"Stopping worker")
+            self.logger.debug(f"Stopping worker")
             worker.cancel()
         self.logger.info(f"All workers have been stopped")
 
@@ -62,8 +63,8 @@ class TlgSender(threading.Thread):
 
                 async with session.post(bot_url, data=data) as response:
                     self.logger.debug(f"Response to a sent message: {response}")
-                    if response.code == 200:
+                    if response.status == 200:
                         self.logger.info(f"Worker {name} sent a message '{text}'.")
 
                 queue.task_done()
-        self.logger.info(f"Worker {name} have been stopped")
+                self.logger.info(f"Worker {name} have been stopped")

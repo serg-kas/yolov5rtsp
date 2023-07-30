@@ -7,8 +7,8 @@ import random
 import threading
 import time
 # import json
-import urllib.request
-from urllib.parse import quote
+# import urllib.request
+# from urllib.parse import quote
 #
 import settings as s
 import log
@@ -103,10 +103,10 @@ logger.debug("Распознаем паттерн. Индексы: {}".format(pa
 # #############################################################################
 class MyThread (threading.Thread):
     def __init__(self):
-        self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
         threading.Thread.__init__(self)
+        self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
+        #
         self.result = None          # результаты предикта
-        self.frame = None           # фрейм к результату
         self.image = None           # сюда подавать изображение для предикта
         self.stop = False           # остановить поток
         #
@@ -177,13 +177,13 @@ myThread.start()
 #
 result_show = None  # список объектов для отображения на фрейме
 #
-N_acc = s.N_ACC      # размер аккумулятора, предиктов
+N_acc = s.N_ACC      # размер аккумулятора предиктов
 N_pred = s.N_PRED    # при скольких предиктах объекта в аккумуляторе показываем объект
 N_coord = s.N_COORD  # по скольки последним предиктам усредняем bb (координаты)
 assert N_pred <= N_acc and N_coord < N_acc
 #
 acc_result_np = np.zeros((1, 7), dtype=np.int32)  # аккумулируемый результат предиктов numpy
-acc_result_np[0, 5:7] = -1                        # фейковые номер объекта и трек -1
+acc_result_np[0, 5:7] = -1                              # фейковые номер объекта и трек -1
 #
 # Предыдущий фрейм если не готов новый
 prev_frame_rtsp = None
@@ -198,20 +198,19 @@ cap_error_count = 0
 # #############################################################################
 while True:
     # получаем новый фрейм
-    ret, new_frame = cap.read()
+    ret, frame = cap.read()
     if ret:
         cap_error_count = 0  # обнуляем счетчик ошибок при получении изображения
         logger.debug("Получен новый фрейм от источника")
         #
-        h, w = new_frame.shape[:2]
+        h, w = frame.shape[:2]
         W = def_W
         H = int(W / w * h)
-        new_frame = cv.resize(new_frame, (W, H), interpolation=cv.INTER_AREA)
+        frame = cv.resize(frame, (W, H), interpolation=cv.INTER_AREA)
 
         # засылаем новый фрейм на предикт
         if myThread.image is None:
-            myThread.image = new_frame[:, :, ::-1].copy()
-            myThread.frame = new_frame.copy()
+            myThread.image = frame[:, :, ::-1].copy()
             logger.debug("Новый фрейм подан на предикт")
         else:
             logger.debug("Нейронка занята, фрейм не берет")
@@ -228,7 +227,6 @@ while True:
     #
     if myThread.result is not None:
         # Получаем и обрабатываем результат предикта
-        frame = myThread.frame.copy()
         new_result_np = myThread.result.copy()
         myThread.result = None
         # print(new_result_np.shape, new_result_np)
@@ -254,8 +252,8 @@ while True:
                     break
                 elif new_obj != obj and u.get_iou(new_obj_coord, obj_coord) > s.IOU_to_rename:
                     logger.debug("  Объект {} переименован в {}, сохранен существующий трек {}".format(names[obj],
-                                                                                                    names[new_obj],
-                                                                                                    obj_track))
+                                                                                                       names[new_obj],
+                                                                                                       obj_track))
                     new_result_np[i, 6] = obj_track
                     obj_recognized = True
                     break
@@ -363,7 +361,7 @@ while True:
                 start = time.time()
                 # Изображение в телегу
                 logger.info("Отправляем изображение в тлг")
-                #u.send_image_tlg(frame, bot_Token, chat_Id)
+                # u.send_image_tlg(frame, bot_Token, chat_Id)
                 image = cv.imencode('.jpg', frame)
                 try:
                     tlg_sender.send(
@@ -410,6 +408,7 @@ while True:
 #
 logger.info("Stopping Telegram sender")
 tlg_sender.stop()
+#
 logger.info("Отключаем capture, закрываем все окна")
 cap.release()
 cv.destroyAllWindows()
