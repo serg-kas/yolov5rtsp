@@ -360,7 +360,7 @@ while True:
             if diff_time > 20:
                 start = time.time()
                 # Текстовое сообщение в телегу
-                mess_tg = url_tg + quote("\nЕсть детекция, отправляем изображение: {}".format(frame.shape))
+                mess_tg = url_tg + quote("\nЕсть детекция, отправляем изображение размерности: {}".format(frame.shape))
                 with urllib.request.urlopen(mess_tg) as response:
                     html = response.read()
                 #
