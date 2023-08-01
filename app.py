@@ -7,8 +7,8 @@ import random
 import threading
 import time
 # import json
-# import urllib.request
-# from urllib.parse import quote
+import urllib.request
+from urllib.parse import quote
 #
 import settings as s
 import log
@@ -359,6 +359,14 @@ while True:
             logger.debug("diff_time: %d", diff_time)
             if diff_time > 20:
                 start = time.time()
+                # Текстовое сообщение в телегу
+                mess_tg = url_tg + quote("\nЕсть детекция, отправляем изображение: {}".format(frame.shape))
+                with urllib.request.urlopen(mess_tg) as response:
+                    html = response.read()
+                #
+                logger.info("Отправили текстовое сообщение в тлг о детекции")
+                logger.debug(html)
+
                 # Изображение в телегу
                 logger.info("Отправляем изображение в тлг старой функцией")
                 u.send_image_tlg(frame, bot_Token, chat_Id)
