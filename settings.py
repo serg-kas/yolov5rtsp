@@ -113,7 +113,7 @@ ATTEMPTS = get_value_from_env("ATTEMPTS", default_value=3)
 NAMES_TO_DETECT = get_value_from_env("NAMES_TO_DETECT", default_value=['person', 'bottle', 'cell phone', 'chair'])
 
 # Паттерн (сочетание классов), который ищем
-PATTERN_NAMES = get_value_from_env("PATTERN_NAMES", default_value=['person', 'cell phone'])
+PATTERN_NAMES = get_value_from_env("PATTERN_NAMES", default_value=['person', 'chair'])
 
 # Confidence и IOU модели
 MODEL_CONF = get_value_from_env("MODEL_CONF", default_value=0.25)
