@@ -26,9 +26,9 @@ APP_RTSP_SERVER=rtsp://192.168.5.151:8554/mystream
 
 # ################### Параметры работы с НС ###################
 # Классы, которые детектим
-APP_NAMES_TO_DETECT='["person", "bottle", "cell phone", "chair"]'
+APP_NAMES_TO_DETECT="person, bottle, cell phone, chair"
 # Сочетание классов, которое ищем
-APP_PATTERN_NAMES='["person", "cell phone"]'
+APP_PATTERN_NAMES="person, cell phone"
 
 # Confidence и IOU модели
 #APP_MODEL_CONF=0.25

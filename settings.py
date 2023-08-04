@@ -27,7 +27,6 @@ def get_variable_name(variable):
             return name
     return None
 
-
 def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose=False):
     """
     Ищет значение в переменных окружения.
@@ -60,7 +59,7 @@ def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose
         elif type(default_value) is float:
             value = float(value)
         elif type(default_value) is list:
-            value = json.loads(value)
+            value = [item.strip() for item in value.split(',')]
         #
         print("  Получили значение из переменной окружения: {}={}".format(variable_name, value))
         # print(variable_name, value, type(value))
