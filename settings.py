@@ -3,7 +3,7 @@
 Функция get_variable_name достает переменную окружения и возвращает ее значение.
 """
 import os
-import json
+# import json
 from dotenv import load_dotenv
 
 # При наличии файла .env загружаем из него переменные окружения .env
@@ -26,6 +26,7 @@ def get_variable_name(variable):
         if id(locals()[name]) == id(variable):
             return name
     return None
+
 
 def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose=False):
     """
