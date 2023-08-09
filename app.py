@@ -262,7 +262,11 @@ while True:
             else:
                 logger.debug("  Объекту {} присвоен новый трек {}".format(names[new_obj], track))
                 new_result_np[i, 6] = track
-                track += 1 if track < 1000 else 0
+                # track = track + 1 if track < 1000 else 0
+                if track < 1000:
+                    track += 1
+                else:
+                    track = 0
         #
         new_result_to_add = new_result_np[new_result_np[:, 6] != -1]
         acc_result_np = np.append(acc_result_np, new_result_to_add, axis=0)
