@@ -15,11 +15,13 @@ import log
 import tlg
 import utils_small as u
 
+
 # ########################## Получение параметров #############################
 # Флаг вывода отладочных сообщений
 DEBUG = s.DEBUG
 
-logger = log.get_logger(level=log.DEBUG if s.DEBUG else log.INFO)
+# Инициализация логгера
+logger = log.get_logger(level=log.DEBUG if DEBUG else log.INFO)
 logger.info("Logger initialized")
 
 # Показывать видео на экране
@@ -47,6 +49,13 @@ tlg_sender = tlg.TlgSender(
 RTSP_URL = s.RTSP_URL
 RTSP_SERVER = s.RTSP_SERVER
 
+# #############################################################################
+# Наличие GPU в системе
+GPU_PRESENT = torch.cuda.is_available()
+if GPU_PRESENT:
+    logger.info("GPU found")
+else:
+    logger.info("GPU not found")
 
 # #############################################################################
 # Для трансляции видео должен быть предварительно запущен RTSP сервер
@@ -104,7 +113,7 @@ logger.debug("Распознаем паттерн. Индексы: {}".format(pa
 class MyThread (threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.logger = log.get_logger(name="neural_net", level=log.DEBUG if s.DEBUG else log.INFO)
+        self.logger = log.get_logger(name="neural_net", level=log.DEBUG if DEBUG else log.INFO)
         #
         self.result = None          # результаты предикта
         self.image = None           # сюда подавать изображение для предикта
@@ -158,10 +167,11 @@ else:
     ret, frame = cap.read()
     image = cv.imencode('.jpg', frame)
     try:
-        tlg_sender.send(
-            "Камера успешно подключена: {}".format(RTSP_URL),
-            image[1].tobytes()
-        )
+        if GPU_PRESENT:
+            mess_tg = "Камера успешно подключена: {}".format(RTSP_URL)
+        else:
+            mess_tg = "Камера успешно подключена: {} \nGPU в системе отсутствует".format(RTSP_URL)
+        tlg_sender.send(mess_tg, image[1].tobytes())
     except tlg.QueueFull as error:
         logger.error(error)
     else:
@@ -170,6 +180,7 @@ else:
 logger.info("Running Telegram sender")
 # TODO: Почему-то надо запускать, когда в очередь уже что-то добавили (tlg_sender.send).
 tlg_sender.start()
+
 
 # #############################################################################
 myThread = MyThread()

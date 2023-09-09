@@ -81,6 +81,9 @@ def get_value_from_env(variable, default_value=None, prefix_name="APP_", verbose
 # Флаг отладки
 DEBUG = get_value_from_env("DEBUG", default_value=False)
 
+
+
+
 # Показывать видео на экране
 SHOW_VIDEO = get_value_from_env("SHOW_VIDEO", default_value=False)
 
