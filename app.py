@@ -141,7 +141,10 @@ class MyThread (threading.Thread):
                 # получаем предикт
                 results = self.model([self.image]).xyxy[0]
                 # формируем результаты в массив numpy
-                result_numpy = results.numpy()
+
+                # result_numpy = results.numpy()  # даст ошибку на GPU
+                result_numpy = results.cpu().numpy()  #TODO: проверять что данные на GPU ?
+
                 track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 номер трека по умолчанию
                 result_numpy = np.append(result_numpy, track_numpy, axis=1)
                 # print(result_numpy.shape, result_numpy)
