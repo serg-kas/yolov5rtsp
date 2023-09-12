@@ -143,7 +143,7 @@ class MyThread (threading.Thread):
                 # формируем результаты в массив numpy
 
                 # result_numpy = results.numpy()  # даст ошибку на GPU
-                result_numpy = results.cpu().numpy()  #TODO: проверять что данные на GPU ?
+                result_numpy = results.cpu().numpy()
 
                 track_numpy = np.full((result_numpy.shape[0], 1), -1)  # -1 номер трека по умолчанию
                 result_numpy = np.append(result_numpy, track_numpy, axis=1)
@@ -356,8 +356,8 @@ while True:
             logger.debug("Distance between objects along the X axis: %d", X_distance)
             Y_distance = abs(Yc_person - Yc_pat)
             logger.debug("Distance between objects along the Y axis: %d", Y_distance)
-            # if (X_distance < def_W / 2) and (Y_distance < def_W / 2):
-            if (X_distance < def_W) and (Y_distance < def_W):
+            #
+            if (X_distance < def_W / 2) and (Y_distance < def_W / 2):
                 logger.info("Паттерн найден: {}".format(pattern_names))
                 pattern_txt = "Attention: {}".format(pattern_names)
                 X1_show = min(X1_person, X1_pat)
